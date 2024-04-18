@@ -32,7 +32,7 @@ sum(!is.na(poau$year_t)) ## how many year t entries
 sum(!is.na(poau$year_t1)) ## how many year t1 entries -- more year t1's is bc of recruits
 sum(!is.na(poau$year_recruit)) ## how many year_recruit entries
 ## this tells us that we are missing lots of year t entries for "real" data
-View(poau %>% filter(is.na(year_t) & !is.na(Seedling_t1)))
+#View(poau %>% filter(is.na(year_t) & !is.na(Seedling_t1)))
 ## we will fix this by subtracting 1 from year t1 -- we checked and these are all real obs
 poau[is.na(poau$year_t),"year_t"]<-poau$year_t1[is.na(poau$year_t)]-1
 ## we stumbled on this one, garbage entry that we figured out should be zero
