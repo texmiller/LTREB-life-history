@@ -7,3 +7,7 @@ manuscript/Scherick-LTREB-endo-life-history.blg
 manuscript/Scherick-LTREB-endo-life-history.log
 manuscript/Scherick-LTREB-endo-life-history.out
 manuscript/Scherick-LTREB-endo-life-history.synctex.gz
+analysis/Stan/ltreb_age_fertility.rds
+analysis/Stan/fert_fit.rds
+analysis/Stan/fert_fit.rds
+*.rds

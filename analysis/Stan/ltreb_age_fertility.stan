@@ -71,7 +71,15 @@ parameters {
   real<lower=0> phi_beta;
   real<lower=0> phi_spp[n_spp];
 }
-
+transformed parameters{
+  vector[n_Ap] mu_Ap = X_Ap*beta_Ap + to_vector(alpha_y[1,year_Ap]) + alpha_p[plot_Ap];
+  vector[n_Er] mu_Er = X_Er*beta_Er + to_vector(alpha_y[2,year_Er]) + alpha_p[plot_Er];
+  vector[n_Ev] mu_Ev = X_Ev*beta_Ev + to_vector(alpha_y[3,year_Ev]) + alpha_p[plot_Ev];
+  vector[n_Fs] mu_Fs = X_Fs*beta_Fs + to_vector(alpha_y[4,year_Fs]) + alpha_p[plot_Fs];
+  vector[n_Pa] mu_Pa = X_Pa*beta_Pa + to_vector(alpha_y[5,year_Pa]) + alpha_p[plot_Pa];
+  vector[n_Pu] mu_Pu = X_Pu*beta_Pu + to_vector(alpha_y[6,year_Pu]) + alpha_p[plot_Pu];
+  vector[n_Ps] mu_Ps = X_Ps*beta_Ps + to_vector(alpha_y[7,year_Ps]) + alpha_p[plot_Ps];
+}
 model {
   //this prior has a mean of one inf and one standard deviation above mean is 7 infs
   beta_Ap ~ normal(0,2);
@@ -93,4 +101,35 @@ model {
   y_Pa ~ neg_binomial_2_log_glm(X_Pa,to_vector(alpha_y[5,year_Pa])+alpha_p[plot_Pa],beta_Pa,phi_spp[5]);
   y_Pu ~ neg_binomial_2_log_glm(X_Pu,to_vector(alpha_y[6,year_Pu])+alpha_p[plot_Pu],beta_Pu,phi_spp[6]);
   y_Ps ~ neg_binomial_2_log_glm(X_Ps,to_vector(alpha_y[7,year_Ps])+alpha_p[plot_Ps],beta_Ps,phi_spp[7]);
+}
+generated quantities{
+  vector[n_Ap] sim_Ap;
+  vector[n_Er] sim_Er;
+  vector[n_Ev] sim_Ev;
+  vector[n_Fs] sim_Fs;
+  vector[n_Pa] sim_Pa;
+  vector[n_Pu] sim_Pu;
+  vector[n_Ps] sim_Ps;
+
+  for(i in 1:n_Ap){
+    sim_Ap[i] = neg_binomial_2_log_rng(mu_Ap[i],phi_spp[1]);
+  }
+  for(i in 1:n_Er){
+    sim_Er[i] = neg_binomial_2_log_rng(mu_Er[i],phi_spp[2]);
+  }
+  for(i in 1:n_Ev){
+    sim_Ev[i] = neg_binomial_2_log_rng(mu_Ev[i],phi_spp[3]);
+  }
+  for(i in 1:n_Fs){
+    sim_Fs[i] = neg_binomial_2_log_rng(mu_Fs[i],phi_spp[4]);
+  }
+  for(i in 1:n_Pa){
+    sim_Pa[i] = neg_binomial_2_log_rng(mu_Pa[i],phi_spp[5]);
+  }
+  for(i in 1:n_Pu){
+    sim_Pu[i] = neg_binomial_2_log_rng(mu_Pu[i],phi_spp[6]);
+  }
+  for(i in 1:n_Ps){
+    sim_Ps[i] = neg_binomial_2_log_rng(mu_Ps[i],phi_spp[7]);
+  }
 }
