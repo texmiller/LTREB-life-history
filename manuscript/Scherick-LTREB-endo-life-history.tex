@@ -1,4 +1,4 @@
-﻿\documentclass[11pt]{article}
+\documentclass[11pt]{article}
 \usepackage[sc]{mathpazo} %Like Palatino with extensive math support
 \usepackage{fullpage}
 \usepackage[authoryear,sectionbib,sort]{natbib}
@@ -6,6 +6,8 @@
 \usepackage[utf8]{inputenc}
 \usepackage{lineno}
 \usepackage{titlesec}
+\usepackage{amsfonts,amssymb,amsmath,hyperref}
+\usepackage{graphicx}
 \titleformat{\section}[block]{\Large\bfseries\filcenter}{\thesection}{1em}{}
 \titleformat{\subsection}[block]{\Large\itshape\filcenter}{\thesubsection}{1em}{}
 \titleformat{\subsubsection}[block]{\large\itshape}{\thesubsubsection}{1em}{}
@@ -26,7 +28,7 @@
 %
 % (Thanks to Vlastimil Krivan for pointing this out to us!)
 
-\title{Template and Guidelines for Using \LaTeX{} in \textit{The~American~Naturalist} }
+\title{Heritable symbionts alter host life history schedules}
 
 % This version of the LaTeX template was last updated on
 % May 11, 2023.
@@ -39,9 +41,14 @@
 % will need to add this information back in to your final files after
 % acceptance.
 
-\author{Owen E. Cook$^{1,\ast}$ \\ 
-Generic H. Collaborator$^{2,\dag}$ \\ 
-Additional Q. Expert$^{3}$}
+\author{Bell Scherick$^{1}$ \\ 
+Ali M. Campbell$^{1}$ \\ 
+Joshua C. Fowler$^{1}$ \\ 
+Jacob Moutouama$^{1}$ \\ 
+Shaun Ziegler$^{2}$ \\
+Kenneth D. Whitney$^{2}$ \\
+Jennifer A. Rudgers$^{2}$ \\
+Tom E.X. Miller$^{1\ast}$}
 
 \date{}
 
@@ -49,23 +56,19 @@ Additional Q. Expert$^{3}$}
 
 \maketitle
 
-\noindent{} 1. University of Chicago, Chicago, Illinois 60637;
+\noindent{} 1. Department of BioSciences, Rice University, Houston, TX 77005, United States;
 
-\noindent{} 2. University of Toronto, Toronto, Ontario M5S 1A5, Canada;
+\noindent{} 2. Department of Biology, University of New Mexico, Albuquerque, NM 87801, United States;
 
-\noindent{} 3. Middle Eastern Technical University, Çankaya, Ankara 06800, Turkey.
-
-\noindent{} $\ast$ Corresponding author; e-mail: amnat@uchicago.edu.
-
-\noindent{} $\dag$ Deceased.
+\noindent{} $\ast$ Corresponding author; e-mail: tom.miller.edu.
 
 \bigskip
 
-\textit{Manuscript elements}: Figure~1, figure~2, table~1, appendix~A (for print; including figure~A1, figure~A2, and table~A1), supplemental PDF. Figure~2 is to print in color.
+\textit{Manuscript elements}: 
 
 \bigskip
 
-\textit{Keywords}: Examples, model, template, guidelines.
+\textit{Keywords}: 
 
 \bigskip
 
@@ -75,73 +78,143 @@ Additional Q. Expert$^{3}$}
 
 \noindent{\footnotesize Prepared using the suggested \LaTeX{} template for \textit{Am.\ Nat.}}
 
-%\linenumbers{}
-%\modulolinenumbers[3]
+\linenumbers{}
+\modulolinenumbers[3]
 
 \newpage{}
 
 \section*{Abstract}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum ultrices diam. Praesent quis dolor in dolor molestie cursus et ac nisi. Vestibulum ante purus, semper eget est vitae, vehicula ornare nisl. Morbi efficitur euismod enim, nec feugiat tellus cursus eget. 
+
 
 \newpage{}
 
 \section*{Introduction}
+Endosymbioses between micro- and macro-organisms are widespread in the natural world and have played a key role in the evolution of life.
+Many microbial symbionts are vertically transmitted from parent to offspring, such that survival and reproduction of the symbiont are tied to that of the host. 
+Both theory and empirical evidence have shown that predominantly vertically reproducing endosymbionts are selected to act as mutualists in order to increase the reproduction of their host, and therefore themselves.
+However, symbioses that are mutually beneficial in their net effects may still involve conflict of interest. 
+The stability of host-symbiont mutualism therefore requires mechanisms that resolve conflict or benefits that are sufficiently strong to compensate for it. 
 
-% The journal does not have numbered sections in the main portion of
-% articles. Please refrain from using section references (à la
-% section~\ref{section:CountingOwlEggs}), and refer to sections by name
-% (e.g. section ``Counting Owl Eggs'').
+Microbial symbionts can induce diverse effects on age-specific survival and reproduction -- parameters that define the host life history. 
+Such life history modifications may or may not constitute host-symbiont conflict depending on how they influence net fitness of hosts. 
+For vertically-transmitted symbionts, selection may act to favor symbiont strategies that induce early host reproduction, which ensures symbiont fitness against the risk of host mortality or reproductive failure later in life.\footnote{All else equal, a perfectly and exclusively heritable symbiont should have the same ESS life history strategy as its host, but imperfect transmission or retention may favor symbionts getting out earlier.} 
+For example, infection by the heritable bacterial symbiont \textit{Wolbachia} has been found to accelerate early host reproduction and modify age-specific survival rates in pharaoh ants \citep{singh2020wolbachia} and fruit flies \citep{fry2004variable}. 
+Shield bugs carry heritable extra-cellular bacterial symbionts in the mid-gut that reduce the pre-ovipositional period by 10 days, on average \citep{karamipour2021removal}. 
+Symbiont-driven shifts in host life history strategies toward a faster pace of life may still be consistent with host-symbiont mutualism, as long as positive effects of symbionts compensate for any costs associated with deviation from optimal host life history strategies. 
+On the other hand, advantages of symbiosis may allow hosts to access higher-fitness strategies such that ``deviations'' of the life history schedule work in favor of both host and symbiont. 
+Rarely are these alternative fitness implications known or tested \citep{karamipour2021removal}
 
-The quick red fox jumps over the lazy brown dog. Furthermore, the quick brown fox jumps over the lazy red dog. In addition, the quick R\"{u}ppell's fox (\textit{Vulpes rueppellii}) jumps over the lazy golden retriever.
+Life history manipulation is best studied in arthropod-microbe symbioses, but plants also harbor a rich consortium of microbial associates with the potential to alter life history schedules. 
+Fungal endophytes in the genus Epichlo\"{e} are obligate symbionts of cool-season grasses that are vertically-transmitted through host seed production; some Epichloe species also engage in horizontal transmission at the expense of host reproduction \citep{cheplick2009ecology,clay2002evolutionary}. 
+
+
+In this study, we leverage a unique, long-term symbiont removal experiment, combined with statistical and demographic modeling, to evaluate how endophyte symbiosis modifies the trajectory of mortality and reproduction of host grasses. 
+Taxonomically replicated across seven host-symbiont pairs, our 14-year field experiment has longitudinally tracked replicated cohorts of recruitment in grass populations that were established either symbiotically with \textit{Epichlo\"{e}} fungal endophytes (S+) or with endophytes eliminated through heat treatment (S-). 
+By tracking multiple host cohorts that recruit in different years, our study is uniquely able to isolate, for the first time, age-specific effects of endophyte symbiosis from the confounding influence of background inter-annual variation. 
+We combined statistical estimation of age- and symbiont-specific reproduction and mortality schedules with matrix projection models to synthesize the overall influence of symbiosis on host fitness and life history metrics. 
+Specifically, we asked the following:
+\begin{itemize}
+	\item Are there age-specific effects of endophytes on host reproduction and mortality schedules?
+	\item How do endophyte effects on reproduction and survival combine to influence host life history strategies?
+	\item Are shifts in host life history consistent with overall host-symbiont mutualism?
+	\item How consistent are the life history outcomes of symbiosis across host-symbiont taxonomic pairs, and can host and/or symbiont traits explain inter-specific variation?
+\end{itemize}
+
+
+
+
 
 \section*{Methods}
+\subsection*{Experimental design}
 
-Lorem ipsum ut velit mauris, egestas sed, gravida nec, ornare ut, mi. Aenean ut orci vel massa suscipit pulvinar. Nulla sollicitudin. Fusce varius, ligula non tempus aliquam, nunc turpis ullamcorper nibh, in tempus sapien eros vitae ligula (\citealt{OriginSpec}). 
+\subsection*{Data collection}
+Data collection methods follow that of our previous study \citep{fowler2024microbial}. 
 
-\subsection*{Second-order heading}
+\subsection*{Statistical modeling}
+We used the long-term demographic data to fit statistical models for age- and symbiont-dependent vital rates. 
+Model-fitting was done in a hierarchical Bayesian framework using Stan \citep{carpenter2017stan} and the `rstan' package \citep{rstan} in R version 4.2.3 \citep{R}. 
+Hierarchical modeling allowed us to maximize inference by ``borrowing strength'' across taxonomic, temporal, and spatial dimensions of the experimental design. 
+We fit models for three vital rates: age-specific survival, age-specific fertility, and recruitment. 
+For all models, we ran three chains for 10,000 iterations with a thinning rate of 2. 
+We used vague priors except where noted. 
 
-Lorem ipsum nulla facilisi, pace \citet{LemKapEx07}. Etiam semper, orci sit amet facilisis interdum, tellus nunc consequat erat, quis viverra nisi diam ut metus. Pellentesque cursus, sapien malesuada euismod iaculis, mauris purus interdum diam, vel vestibulum justo enim vitae tellus. Nunc interdum lorem sit amet diam volutpat tristique. Quisque pulvinar ac metus commodo lacinia (\citealt{Ing11,Xiao2015}).  
+For age-specific vital rates, age was modeled as a categorical factor rather than a continuous covariate; this allowed for maximally flexible age-dependence without having to assume a functional form of how vital rates varied with age. 
+Due to mortality, sample sizes decreased with increasing age (Table).
+For each species we pooled advanced ages with fewer than 10 observations each into a combined ``old'' age class. 
+For example, if the oldest age with at least 10 observations was 5 years old, everything older than 5 was pooled as age class ``6+''.
+When S+ and S- populations differed in the upper age that satisfied $n \geq 10$, we used the younger age of the two to define the ``old'' age group. 
+This difference was most pronounced in \textit{Poa alsodes}, where the oldest age with $n \geq 10$ was $1yo$ for S- and $4yo$ for S+ (Table). 
+Therefore, age classes for the \textit{P. alsodes} vital rate models were 0, 1, and 2+. 
+All other host species had more even age representation between S+ and S- and greater representation of later ages, with ``old'' age groups reaching 4+ for \textit{E. villosus} and \textit{E. virginicus}, 5+ for \textit{P. autumnalis}, 6+ for \textit{A. perennans} and \textit{F. subverticillata}, and 7+ for \textit{P. sylvestris}. 
 
-\subsubsection*{Third-order heading}
+\subsubsection*{Age-specific survival}
+The survival model included fixed effects of host species, age class, and enodphyte status and random effects associated with year-to-year and plot-to-plot variation. 
+Let $y_{ijkl}$ be the survival status (1=alive, 0=dead) of individual $i$ of species $j$ in plot $k$ and year $l$.  
+We modeled these data as Bernoulli-distributed with probability of survival $\hat{p}_{ijkl}$ given by:
 
-Usually two or three levels of heading will be all you need. Journal style even permits a fourth level in case you need it.
+\begin{align*}
+	logit(\hat{p}_{ijkl}) = \alpha^{j}_{a[i]} + \beta^{j}_{a[i]} * e_k + \rho_k + \tau^{j}_{l}\\
+	\rho_k \sim N(0,\sigma^2_{plot})\\
+	\tau^{j}_{l} \sim N(0,\sigma^2_{year})\\
+	\label{eq:surv_mod}
+\end{align*}
 
-\paragraph*{Fourth-order heading}
-The quick red fox jumps over the lazy brown dog in this paragraph as well. Donec mauris nibh, volutpat vehicula viverra at, iaculis congue sem. Praesent eget erat rhoncus erat sollicitudin volutpat. 
+Factor variable $a[i]$ is the age class of individual $i$ in year $l$ and $e_k$ is the endophyte status (1=S+, 0=S-) assigned to plot $k$, which we assume to apply equally to all individuals in plot $k$. 
+Parameter $\alpha^{j}_{a}$ is the survival probability of species $j$ age class $a$ (on the logit scale) and parameter $\beta^{j}_{a}$ is the effect of endophyte symbiosis on that survival rate. 
+Host species share variance parameters ($\sigma^2$) for plot ($\rho_k$) and year ($\tau^{j}_{l}$) effects. 
+Year effects $\tau^{j}_{l}$ are expicitly associated with species $j$, allowing different species to experience good and bad years at different times (while sharing the same variance).
+Because each plot contains only one species, plot effects $\rho_k$ are implictly associated with species $j$.
+We used the weakly informative priors $\alpha^{j}_{a} \sim N(-1,5)$, indicating that plants are more likely to die than survive, on average, with one standard deviation below and above the mean corresponding to $0.24\%$ and $98\%$ survival probabilities, respectively.
+These priors accommodated a wide range of potential model outcomes while pointing the algorithm in the right direction to aid convergence. 
 
-\begin{equation}
-{ \frac{1}{N_k-1} \sum \limits_{t=1}^{N_k} (M_{tjk} - \bar{M}_{jk})^2}
-\end{equation}
+\subsubsection*{Age-specific fertility}
+The fertility model was similar in structure to the survival model except that the response variable was the count of inflorescences of individual $i$ of species $j$ in plot $k$ and year $l$. 
+We modeled these counts as Negative Binomially-distributed with mean $\mu_{ijkl}$ and species-specific overdispersion $\phi_{j})$. 
+$log(\mu_{ijkl})$ was given by the same linear predict as $logit(\hat{p}_{ijkl})$ in Eq. \ref{eq:surv_mod}. 
+Overdispersion parameters were modeled as a Gamma-distributed species random effect $\phi_{j} \sim Gamma(\alpha^\phi,\beta^\phi)$ with cross-species mean $\frac{\alpha^\phi}{\beta^\phi}$. 
+While the inflorescence counts were zero-heavy, posterior predictive checks confirmed that the negative binomial model could generate the observed frequencies of zeroes. 
 
-Praesent quis dolor in dolor molestie cursus et ac nisi. Vestibulum ante purus, semper eget est vitae, vehicula ornare nisl. Morbi efficitur euismod enim, nec feugiat tellus cursus eget. Donec mauris nibh, volutpat vehicula viverra at, iaculis congue sem.
+\subsubsection*{Recruitment rate}
+Finally, we modeled the number of recruits of species $j$ observed in plot $k$ and year $l$ as Poisson-distributed with mean $\lambda_{jkl}$. 
+We defined this mean as a function of the total number of inflorescneces ($inf$) produced in plot $k$ in the previous year $l-1$, allowing for random plot and year effects as above:
+\begin{align*}
+	\lambda_{jkl} = exp(\alpha^{j} + \beta^{j}*e_k + \rho_k + \tau^{j}_{l}) * inf_{k,l-1}\\
+	\rho_k \sim N(0,\sigma^2_{plot})\\
+	\tau^{j}_{l} \sim N(0,\sigma^2_{year})\\
+\end{align*}
+Species-specific parameters $\alpha^{j}$ control the rate at which last year's inflorescences generate this year's recruitment, and parameters $\beta^{j}$ control endophyte effects on this rate. 
+Note that the model is agnostic to \emph{how} endophytes effect the inflorescence-to-recruitment rate (e.g., through effects on seed number per inflorescence, seed germination rate, or seedling survival). 
+The covariate $inf_{k,l}$ was calculated for each plot by summing inflorescences across all individuals, including the original plants that are otherwise not included in these analyses, since their reproduction contributed to observed recruitment. 
+We assume that recruitment occurs exclusively from seed production in the preceding year, i.e., no long-lived seed bank. 
+Eq. \ref{eq:recruit_mod} implies that if no inflorescences are produced in a plot, there should be no recruitment in the following year (mostly true??). 
 
-\subsection*{Another second-order heading}
-
-As \citet{Xiao2015} argued, phasellus porttitor eros et ante condimentum, eget facilisis orci condimentum. Nulla facilisi. Proin placerat elit blandit, euismod dolor nec, dapibus diam. Mauris posuere malesuada lacus, at elementum lacus auctor eu (fig~\ref{Fig:Jumps}A). 
+\subsection*{Demographic modeling}
 
 \section*{Results}
 
-Lorem ipsum dolor sit amet. Aenean pulvinar malesuada commodo (see \citealt{DavisEtAl2011}; table~\ref{Table:Founders}). Sed aliquet mauris odio, in tristique dui egestas a. Etiam eu malesuada quam. Suspendisse tincidunt eu erat sit amet vulputate. Duis at arcu et nisl dictum mattis. Maecenas vel cursus ante. Cras eleifend elit nec velit sollicitudin fermentum in ac mauris. Pellentesque rutrum magna vel elit maximus hendrerit. 
+\begin{figure}
+	\begin{center}
+		\includegraphics[width=1\linewidth]{figures/age_specific_survival}
+		\caption{}
+		\label{fig:age_surv}
+	\end{center}
+\end{figure}
 
-\subsection*{The height of the jump}
 
-Aenean eu pellentesque quam (fig.~\ref{Fig:OkapiHorn}). Nam pellentesque augue eu finibus lacinia. Nullam nec justo vitae odio imperdiet rhoncus vitae vitae quam. Pellentesque porttitor metus et lectus ornare, ac cursus urna efficitur (fig~\ref{Fig:Jumps}B). 
-
-\subsection*{The laziness of the dog}
-
-Example paragraph with embedded references (video~\ref{VideoExample}, fig.~\ref{Fig:AnotherFigure}). 
-If you have deposited data to Dryad, it is advisable to cite them somewhere in the main text (usually in the Methods or Results sections). A sentence like the following will do: All data are available in the Dryad Digital Repository (\citealt{CookEtAl2015}).
+\begin{figure}
+	\begin{center}
+		\includegraphics[width=1\linewidth]{figures/age_specific_fertility}
+		\caption{}
+		\label{fig:age_surv}
+	\end{center}
+\end{figure}
 
 \section*{Discussion}
 
-Nam pulvinar lorem at lorem ultrices, vel accumsan massa feugiat (\citealt{Ing11}). Proin tristique velit eget lacus iaculis, in pellentesque nulla varius. Phasellus sodales est odio, eu pulvinar magna pellentesque eu. Sed ut lobortis eros. Aliquam eget metus turpis. Sed et convallis lectus, id tincidunt enim. In porta nibh ut lacus feugiat, non consequat orci rhoncus. Morbi blandit at augue nec tempor. Sed fringilla ipsum ut justo viverra, ut euismod nisi gravida.
-
-Curabitur non posuere augue, id suscipit orci. Nunc luctus accumsan aliquam. Cras egestas turpis vitae nisl vulputate interdum. Donec pellentesque libero egestas tortor pharetra laoreet. Phasellus facilisis auctor ligula, eu sollicitudin mi sagittis non.
-
 \section*{Conclusion}
 
-Duis pharetra enim at libero cursus, eu commodo mi vestibulum. Nullam eget velit nec lectus viverra sodales. Suspendisse egestas, eros at dictum tincidunt, mi orci laoreet libero, eget rutrum sapien arcu blandit odio.
+
 
 %%%%%%%%%%%%%%%%%%%%%
 % Acknowledgments
@@ -154,7 +227,6 @@ Duis pharetra enim at libero cursus, eu commodo mi vestibulum. Nullam eget velit
 
 \section*{Acknowledgments}
 
-OEC would like to thank Madlen Wilmes, Gyuri Barab\'{a}s, Flo D\'{e}barre, Vlastimil K\v{r}ivan, and Greg Dwyer for their comments and suggestions on this template.
 
 %%%%%%%%%%%%%%%%%%%%%
 % Statement of Authorship
@@ -166,14 +238,10 @@ OEC would like to thank Madlen Wilmes, Gyuri Barab\'{a}s, Flo D\'{e}barre, Vlast
 
 \section*{Statement of Authorship}
 
-OEC conceived the experiments, collected the data, and wrote the original draft.
-GHC provided specimens and analyzed the model.
-AQE oversaw data analysis and developed the code. 
-All authors reviewed and edited the writing at all stages of revision.
+
 
 \section*{Data and Code Availability}
-
-On initial submission, you may use this section to provide a URL for editors and reviewers that is `private for peer review'. After acceptance, this section must be updated with correct, working DOIs for data deposits (such as on the Dryad Digital Repository, \citealt{CookEtAl2015}) and code deposits (such as in Zenodo). 
+ 
 
 \section*{Appendix A: Additional Methods and Parameters}
 
@@ -204,181 +272,50 @@ On initial submission, you may use this section to provide a URL for editors and
 \setcounter{figure}{0}
 \setcounter{table}{0}
 
-\subsection*{Fox--dog encounters through the ages}
-
-The quick red fox jumps over the lazy brown dog. The quick red fox has always jumped over the lazy brown dog. The quick red fox began jumping over the lazy brown dog in the 19th century and has never ceased from so jumping, as we shall see in figure~\ref{Fig:Jumps}. But there can be surprises (figure~\ref{Fig:JumpsOk}).
-
-If the order and location of figures is not otherwise clear, feel free to include explanatory dummy text like this:
-
-[Figure A1 goes here.]
-
-[Figure A2 goes here.]
-
-\subsection*{Further insights}
-
-Tables in the appendices can appear in the appendix text (see table~\ref{Table:Rivers} for an example), unlike appendix figure legends which should be grouped at the end of the document together with the other figure legends.
-
-\begin{table}[h]
-\caption{Various rivers, cities, and animals}
-\label{Table:Rivers}
-\centering
-\begin{tabular}{lll}\hline
-River        & City        & Animal            \\ \hline
-Chicago      & Chicago     & Raccoon           \\
-Des Plaines  & Joliet      & Coyote            \\
-Illinois     & Peoria      & Cardinal          \\
-Kankakee     & Bourbonnais & White-tailed deer \\
-Mississippi  & Galena      & Bald eagle        \\ \hline
-\end{tabular}
-\bigskip{}
-\\
-{\footnotesize Note: See table~\ref{Table:Founders} below for further table formatting hints.}
+\begin{table}[ht]
+	\centering
+	\begin{tabular}{rrrrrrrrr}
+		\hline
+		Endo & Age & AGPE & ELRI & ELVI & FESU & POAL & POAU & POSY \\ 
+		\hline
+		0 & 0 & 678 & 258 & 125 & 809 & 253 & 816 & 2516 \\ 
+		0 & 1 & 256 & 50 & 63 & 253 & 58 & 160 & 527 \\ 
+		0 & 2 & 135 & 19 & 36 & 106 & 8 & 66 & 229 \\ 
+		0 & 3 & 83 & 15 & 12 & 47 & 3 & 36 & 131 \\ 
+		0 & 4 & 50 & 9 & 5 & 30 & 0 & 18 & 70 \\ 
+		0 & 5 & 26 & 8 & 3 & 13 & 0 & 5 & 39 \\ 
+		0 & 6 & 7 & 7 & 3 & 6 & 0 & 3 & 19 \\ 
+		0 & 7 & 1 & 5 & 0 & 5 & 0 & 2 & 9 \\ 
+		0 & 8 & 1 & 4 & 0 & 2 & 0 & 1 & 4 \\ 
+		0 & 9 & 1 & 0 & 0 & 0 & 0 & 0 & 3 \\ 
+		0 & 10 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\ 
+		0 & 11 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\ 
+		1 & 0 & 770 & 385 & 273 & 1750 & 1135 & 1775 & 5473 \\ 
+		1 & 1 & 341 & 108 & 97 & 515 & 392 & 389 & 1802 \\ 
+		1 & 2 & 184 & 47 & 48 & 264 & 123 & 187 & 744 \\ 
+		1 & 3 & 66 & 29 & 27 & 165 & 76 & 99 & 339 \\ 
+		1 & 4 & 24 & 12 & 15 & 99 & 31 & 45 & 214 \\ 
+		1 & 5 & 10 & 8 & 9 & 61 & 5 & 21 & 112 \\ 
+		1 & 6 & 5 & 5 & 5 & 28 & 0 & 3 & 57 \\ 
+		1 & 7 & 0 & 3 & 2 & 17 & 0 & 0 & 33 \\ 
+		1 & 8 & 0 & 3 & 1 & 9 & 0 & 0 & 17 \\ 
+		1 & 9 & 0 & 1 & 0 & 3 & 0 & 0 & 4 \\ 
+		1 & 10 & 0 & 1 & 0 & 3 & 0 & 0 & 2 \\ 
+		1 & 11 & 0 & 1 & 0 & 2 & 0 & 0 & 2 \\ 
+		1 & 12 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\ 
+		1 & 13 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\ 
+		1 & 14 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\ 
+		\hline
+	\end{tabular}
+\caption{Sample sizes (number of individuals) for each endophyte status (Endo), age (years), and host species.}
+\label{tab:age_n}
 \end{table}
-
-Lorem ipsum dolor sit amet, as we have seen in figures~\ref{Fig:Jumps} and \ref{Fig:JumpsOk}.
-
 
 %%%%%%%%%%%%%%%%%%%%%
 % Bibliography
 %%%%%%%%%%%%%%%%%%%%%
-% You can either type your references following the examples below, or
-% compile your BiBTeX database and paste the contents of your .bbl file
-% here. The amnatnat.bst style file should work for this---but please
-% let us know if you run into any hitches with it!
-%
-% If you upload a .bib file with your submission, please upload the .bbl
-% file as well; this will be required for typesetting.
-%
-% The list below includes sample journal articles, book chapters, and
-% Dryad references.
-
-\begin{thebibliography}{}
-
-\bibitem[{Cook et~al.(2015)Cook, Collaborator, and Expert}]{CookEtAl2015}
-Cook, O.~E., G.~H. Collaborator, and A.~Q. Expert. 2015.
-\newblock Data from: Template and guidelines for using \LaTeX{} in \textit{The American Naturalist}.
-\newblock American Naturalist, Dryad Digital Repository, https://dx.doi.org/10.5061/dryad.XYZAB123.
-
-\bibitem[{Darwin(1859)Darwin}]{OriginSpec}
-Darwin, C. 1859.
-\newblock On the origin of species by means of natural selection, or the preservation of favoured races in the struggle for life.
-\newblock J.~Murray, London.
-
-\bibitem[{Davis et~al.(2011)Davis, Brakora, and Lee}]{DavisEtAl2011}
-Davis, E.~B., K.~A. Brakora, and A.~H. Lee. 2011.
-\newblock Evolution of ruminant headgear: a review.
-\newblock Proceedings of the Royal Society~B 278:2857--2865.
-
-\bibitem[{Inglis et~al.(2011)Inglis, Roberts, Gardner, and Buckling}]{Ing11}
-Inglis, R.~F., P.~G. Roberts, A.~Gardner, and A.~Buckling. 2011.
-\newblock Spite and the scale of competition in \textit{Pseudomonas
-  aeruginosa}.
-\newblock American Naturalist 178:276--285.
-
-\bibitem[{Fastovsky(2009)Fastovsky}]{LemKapEx07}
-Fastovsky, D.~E. 2009.
-\newblock Ideas in dinosaur paleontology: resonating to social and political context.
-\newblock Pages 239--253 \emph{in} D. Sepkoski and M. Ruse, eds. The Paleobiological Revolution. University of Chicago Press, Chicago~IL.
-
-\bibitem[{Xiao et~al.(2015)Xiao, McGlinn, and White}]{Xiao2015}
-Xiao, X., D.~J. McGlinn, and E.~P. White. 2015.
-\newblock A strong test of the maximum entropy theory of ecology.
-\newblock American Naturalist 185:E705--E80.
-
-\section*{References Cited Only in the Online Enhancements}
-
-% This section is for works cited in your supplemental PDF but
-% not in the main text.
-
-\bibitem[{Tytler(1759)Tytler}]{tytler-mqos}
-Tytler, W. 1759.
-\newblock The Inquiry, Historical and Critical, into the Evidence against Mary Queen of Scots, and an Examination of the Histories of Dr. Robertson and David Hume with respect to that Evidence.
-\newblock W.~Creech, Edinburgh.
-
-\end{thebibliography}
-
-\newpage{}
-
-\section*{Tables}
-\renewcommand{\thetable}{\arabic{table}}
-\setcounter{table}{0}
-
-\begin{table}[h]
-\caption{Founders of \textit{The~American Naturalist}}
-\label{Table:Founders}
-\centering
-\begin{tabular}{lll}\hline
-Early editor            & Years with the journal \\ \hline
-Alpheus S. Packard Jr.  & 1867--1886 \\
-Frederick W. Putnam     & 1867--1874 \\ 
-Edward S. Morse         & 1867--1871 \\ 
-Alpheus Hyatt           & 1867--1871 \\
-Edward Drinker Cope$^a$ & 1878--1897 \\
-J.~S. Kingsley          & 1887--1896 \\ \hline 
-\end{tabular}
-\bigskip{}
-\\
-{\footnotesize Note: Table titles should be short. Further details should go in a `notes' area after the tabular environment, like this. $^a$ Published the first description of \textit{Dimetrodon}.}
-\end{table}
-
-\newpage{}
-
-\section*{Figure legends}
-
-\begin{figure}[h!]
-%\includegraphics{horn-of-okapi}
-\caption{Figure legends can be longer than the titles of tables. However, they should not be excessively long---in most cases, they should be no more than 100 words each.}
-\label{Fig:OkapiHorn}
-\end{figure}
-
-
-
-\begin{figure}[h!]
-%\includegraphics{elegance}
-\caption{In this way, figure legends can be listed at the end of the document, with references that work, even though the graphic itself should be included for final files after acceptance. Instead, upload the relevant figure files separately to Editorial Manager; Editorial Manager should insert them at the end of the PDF automatically.}
-\label{Fig:AnotherFigure}
-\end{figure}
-
-% Figure legends for any print appendices you might have.
-
-\renewcommand{\thefigure}{A\arabic{figure}}
-\setcounter{figure}{0}
-
-\begin{figure}[h!]
-%\includegraphics{jumps20m}
-\caption{\textit{A}, the quick red fox proceeding to jump 20~m straight into the air over not one, but several lazy dogs. \textit{B}, the quick red fox landing gracefully despite the skepticism of naysayers.}
-\label{Fig:Jumps}
-\end{figure}
-
-\begin{figure}[h!]
-%\includegraphics{jumps20m}
-\caption{The quicker the red fox jumps, the likelier it is to land near an okapi. For further details, see \citet{LemKapEx07}.}
-\label{Fig:JumpsOk}
-\end{figure}
-
-
-%%%%%%%%%%%%%%%%%%%%%
-% Videos
-%%%%%%%%%%%%%%%%%%%%%
-% If you have videos, journal style for them is generally similar to that for
-% figures. 
-
-%%%%% Include the text below if you have videos
-
-\renewcommand{\figurename}{Video} 
-\renewcommand{\thefigure}{S\arabic{figure}}
-\setcounter{figure}{0}
-
-\begin{figure}[h!]
-%\includegraphics{VideoScreengrab.jpg}
-\caption{Video legends can follow the same principles as figure legends. Counters should be set and reset so that videos and figures are enumerated separately.}
-\label{VideoExample}
-\end{figure}
-
-\renewcommand{\figurename}{Figure}
-\setcounter{figure}{1}
-
-%%%%% Include the above if you have videos
+\bibliographystyle{apalike}
+\bibliography{endo-life-history}
 
 
 \end{document}

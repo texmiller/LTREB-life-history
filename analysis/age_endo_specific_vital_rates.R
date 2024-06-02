@@ -5,9 +5,15 @@ options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
 library(bayesplot)
 library(scales)
+library(xtable)
 
 ## functions
 invlogit<-function(x){exp(x)/(1+exp(x))}
+prop_zero <- function(x) mean(x == 0)
+
+## set working directory
+tom<-"C:/Users/tm9/Dropbox/github/LTREB-life-history"
+setwd(tom)
 
 ## read in QAQC'd data
 ## as of 4.18.2024 there are still some data issues (see comments) but this is 
@@ -24,6 +30,15 @@ ltreb<-read.csv("./data prep/ltreb_allspp_qaqc.csv") %>%
 
 ## what are the age limits we can use for each species
 table(ltreb$age,ltreb$species,ltreb$endo_01)
+em_tab <- table(ltreb$age[ltreb$endo_01==0],ltreb$species[ltreb$endo_01==0])
+ep_tab <- table(ltreb$age[ltreb$endo_01==1],ltreb$species[ltreb$endo_01==1])
+tab<-cbind(c(rep(0,times=nrow(em_tab)),rep(1,times=nrow(ep_tab))),
+           as.integer(c(rownames(em_tab),rownames(ep_tab))),
+           rbind(em_tab,ep_tab))
+colnames(tab)[1:2]<-c("Endo","Age")
+## Appendix Table
+print(xtable(tab,digits=0),include.rownames=FALSE)
+
 ## we need a criterion for the max age that we will try to model
 ## before lumping tail ages as "old"
 ## for each species and endophyte status, what is the most advanced age
@@ -525,7 +540,8 @@ fert_fit<-sampling(fertility_model,data = stan_dat_fert,
                             "beta_Ev","beta_Fs",
                             "beta_Pa","beta_Pu",
                             "beta_Ps","phi_spp",
-                            "sigma_year","sigma_plot"), 
+                            "sigma_year","sigma_plot",
+                            "sim_Ap","sim_Er","sim_Ev","sim_Fs","sim_Pa","sim_Pu","sim_Ps"), 
                    save_warmup=F)
 write_rds(fert_fit,"analysis/Stan/fert_fit.rds")
 fert_fit<-readRDS("analysis/Stan/fert_fit.rds")
@@ -533,6 +549,28 @@ fert_fit<-readRDS("analysis/Stan/fert_fit.rds")
 ## check a few trace plots
 bayesplot::mcmc_trace(fert_fit,pars = c("sigma_year","sigma_plot"))
 bayesplot::mcmc_trace(fert_fit,pars = c("beta_Ap[1]","beta_Er[1]"))
+
+## could the negbin generate the zero-heavy data? YES
+y_Ap_sim <- rstan::extract(fert_fit,pars="sim_Ap")
+ppc_stat(stan_dat_fert$y_Ap, y_Ap_sim$sim_Ap, stat = "prop_zero", binwidth = 0.005)
+
+y_Er_sim <- rstan::extract(fert_fit,pars="sim_Er")
+ppc_stat(stan_dat_fert$y_Er, y_Er_sim$sim_Er, stat = "prop_zero", binwidth = 0.005)
+
+y_Ev_sim <- rstan::extract(fert_fit,pars="sim_Ev")
+ppc_stat(stan_dat_fert$y_Ev, y_Ev_sim$sim_Ev, stat = "prop_zero", binwidth = 0.005)
+
+y_Fs_sim <- rstan::extract(fert_fit,pars="sim_Fs")
+ppc_stat(stan_dat_fert$y_Fs, y_Fs_sim$sim_Fs, stat = "prop_zero", binwidth = 0.005)
+
+y_Pa_sim <- rstan::extract(fert_fit,pars="sim_Pa")
+ppc_stat(stan_dat_fert$y_Pa, y_Pa_sim$sim_Pa, stat = "prop_zero", binwidth = 0.005)
+
+y_Pu_sim <- rstan::extract(fert_fit,pars="sim_Pu")
+ppc_stat(stan_dat_fert$y_Pu, y_Pu_sim$sim_Pu, stat = "prop_zero", binwidth = 0.005)
+
+y_Ps_sim <- rstan::extract(fert_fit,pars="sim_Ps")
+ppc_stat(stan_dat_fert$y_Ps, y_Ps_sim$sim_Ps, stat = "prop_zero", binwidth = 0.005)
 
 ## wrangle parameter indices to get age- and endo-specific survival
 ## Agrostis perennans
@@ -556,13 +594,126 @@ Ap_ep_fert <- exp(apply(cbind(Ap_fert_par$beta_Ap[,"(Intercept)"]+Ap_fert_par$be
                                    Ap_fert_par$beta_Ap[,"(Intercept)"]+Ap_fert_par$beta_Ap[,"as.factor(endo_01)1"]+Ap_fert_par$beta_Ap[,"as.factor(age_lump)6"]+Ap_fert_par$beta_Ap[,"as.factor(age_lump)6:as.factor(endo_01)1"]),
                              2,quantile,probs=c(0.1,0.25,0.5,0.75,0.9)))
 
+## Elymus villosus
+Er_par_fert <- rstan::extract(fert_fit,pars="beta_Er")
+colnames(Er_par_fert$beta_Er)<-colnames(Xf_Er)
+age_limits %>% filter(species=="ELRI")## ELRI goes to lump age 4
+Er_em_fert <- invlogit(apply(cbind(Er_par_fert$beta_Er[,"(Intercept)"],
+                                   Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(age_lump)1"],
+                                   Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(age_lump)2"],
+                                   Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(age_lump)3"],
+                                   Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(age_lump)4"]),
+                             2,quantile,probs=quantile_probs))
+Er_ep_fert <- invlogit(apply(cbind(Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(endo_01)1"],
+                                   Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(endo_01)1"]+Er_par_fert$beta_Er[,"as.factor(age_lump)1"]+Er_par_fert$beta_Er[,"as.factor(age_lump)1:as.factor(endo_01)1"],
+                                   Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(endo_01)1"]+Er_par_fert$beta_Er[,"as.factor(age_lump)2"]+Er_par_fert$beta_Er[,"as.factor(age_lump)2:as.factor(endo_01)1"],
+                                   Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(endo_01)1"]+Er_par_fert$beta_Er[,"as.factor(age_lump)3"]+Er_par_fert$beta_Er[,"as.factor(age_lump)3:as.factor(endo_01)1"],
+                                   Er_par_fert$beta_Er[,"(Intercept)"]+Er_par_fert$beta_Er[,"as.factor(endo_01)1"]+Er_par_fert$beta_Er[,"as.factor(age_lump)4"]+Er_par_fert$beta_Er[,"as.factor(age_lump)4:as.factor(endo_01)1"]),
+                             2,quantile,probs=c(0.1,0.25,0.5,0.75,0.9)))
+
+## Elymus virginicus
+Ev_par_fert <- rstan::extract(fert_fit,pars="beta_Ev")
+colnames(Ev_par_fert$beta_Ev)<-colnames(Xf_Ev)
+age_limits %>% filter(species=="ELVI")## ELRI goes to lump age 4
+Ev_em_fert <- invlogit(apply(cbind(Ev_par_fert$beta_Ev[,"(Intercept)"],
+                                   Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)1"],
+                                   Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)2"],
+                                   Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)3"],
+                                   Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)4"]),
+                             2,quantile,probs=quantile_probs))
+Ev_ep_fert <- invlogit(apply(cbind(Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(endo_01)1"],
+                                   Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(endo_01)1"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)1"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)1:as.factor(endo_01)1"],
+                                   Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(endo_01)1"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)2"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)2:as.factor(endo_01)1"],
+                                   Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(endo_01)1"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)3"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)3:as.factor(endo_01)1"],
+                                   Ev_par_fert$beta_Ev[,"(Intercept)"]+Ev_par_fert$beta_Ev[,"as.factor(endo_01)1"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)4"]+Ev_par_fert$beta_Ev[,"as.factor(age_lump)4:as.factor(endo_01)1"]),
+                             2,quantile,probs=c(0.1,0.25,0.5,0.75,0.9)))
+
+## Festuca subverticillata
+Fs_par_fert <- rstan::extract(fert_fit,pars="beta_Fs")
+colnames(Fs_par_fert$beta_Fs)<-colnames(Xf_Fs)
+age_limits %>% filter(species=="FESU")## ELRI goes to lump age 4
+Fs_em_fert <- invlogit(apply(cbind(Fs_par_fert$beta_Fs[,"(Intercept)"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)1"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)2"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)3"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)4"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)5"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)6"]),
+                             2,quantile,probs=quantile_probs))
+Fs_ep_fert <- invlogit(apply(cbind(Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(endo_01)1"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)1"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)1:as.factor(endo_01)1"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)2"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)2:as.factor(endo_01)1"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)3"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)3:as.factor(endo_01)1"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)4"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)4:as.factor(endo_01)1"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)5"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)5:as.factor(endo_01)1"],
+                                   Fs_par_fert$beta_Fs[,"(Intercept)"]+Fs_par_fert$beta_Fs[,"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)6"]+Fs_par_fert$beta_Fs[,"as.factor(age_lump)6:as.factor(endo_01)1"]),
+                             2,quantile,probs=c(0.1,0.25,0.5,0.75,0.9)))
+
+## Poa alsodes
+Pa_par_fert <- rstan::extract(fert_fit,pars="beta_Pa")
+colnames(Pa_par_fert$beta_Pa)<-colnames(Xf_Pa)
+age_limits %>% filter(species=="POAL")## POAL goes to lump age 2
+Pa_em_fert <- invlogit(apply(cbind(Pa_par_fert$beta_Pa[,"(Intercept)"],
+                                   Pa_par_fert$beta_Pa[,"(Intercept)"]+Pa_par_fert$beta_Pa[,"as.factor(age_lump)1"],
+                                   Pa_par_fert$beta_Pa[,"(Intercept)"]+Pa_par_fert$beta_Pa[,"as.factor(age_lump)2"]),
+                             2,quantile,probs=quantile_probs))
+Pa_ep_fert <- invlogit(apply(cbind(Pa_par_fert$beta_Pa[,"(Intercept)"]+Pa_par_fert$beta_Pa[,"as.factor(endo_01)1"],
+                                   Pa_par_fert$beta_Pa[,"(Intercept)"]+Pa_par_fert$beta_Pa[,"as.factor(endo_01)1"]+Pa_par_fert$beta_Pa[,"as.factor(age_lump)1"]+Pa_par_fert$beta_Pa[,"as.factor(age_lump)1:as.factor(endo_01)1"],
+                                   Pa_par_fert$beta_Pa[,"(Intercept)"]+Pa_par_fert$beta_Pa[,"as.factor(endo_01)1"]+Pa_par_fert$beta_Pa[,"as.factor(age_lump)2"]+Pa_par_fert$beta_Pa[,"as.factor(age_lump)2:as.factor(endo_01)1"]),
+                             2,quantile,probs=c(0.1,0.25,0.5,0.75,0.9)))
+
+## Poa autumnalis
+Pu_par_fert <- rstan::extract(fert_fit,pars="beta_Pu")
+colnames(Pu_par_fert$beta_Pu)<-colnames(Xf_Pu)
+age_limits %>% filter(species=="POAU")## POAU goes to lump age 5
+Pu_em_fert <- invlogit(apply(cbind(Pu_par_fert$beta_Pu[,"(Intercept)"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)1"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)2"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)3"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)4"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)5"]),
+                             2,quantile,probs=quantile_probs))
+Pu_ep_fert <- invlogit(apply(cbind(Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(endo_01)1"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(endo_01)1"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)1"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)1:as.factor(endo_01)1"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(endo_01)1"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)2"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)2:as.factor(endo_01)1"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(endo_01)1"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)3"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)3:as.factor(endo_01)1"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(endo_01)1"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)4"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)4:as.factor(endo_01)1"],
+                                   Pu_par_fert$beta_Pu[,"(Intercept)"]+Pu_par_fert$beta_Pu[,"as.factor(endo_01)1"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)5"]+Pu_par_fert$beta_Pu[,"as.factor(age_lump)5:as.factor(endo_01)1"]),
+                             2,quantile,probs=c(0.1,0.25,0.5,0.75,0.9)))
+
+## Poa sylvestris
+Ps_par_fert <- rstan::extract(fert_fit,pars="beta_Ps")
+colnames(Ps_par_fert$beta_Ps)<-colnames(Xf_Ps)
+age_limits %>% filter(species=="POSY")## POSY goes to lump age 7
+Ps_em_fert <- invlogit(apply(cbind(Ps_par_fert$beta_Ps[,"(Intercept)"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)1"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)2"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)3"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)4"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)5"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)6"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)7"]),
+                             2,quantile,probs=quantile_probs))
+Ps_ep_fert <- invlogit(apply(cbind(Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(endo_01)1"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(endo_01)1"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)1"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)1:as.factor(endo_01)1"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(endo_01)1"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)2"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)2:as.factor(endo_01)1"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(endo_01)1"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)3"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)3:as.factor(endo_01)1"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(endo_01)1"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)4"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)4:as.factor(endo_01)1"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(endo_01)1"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)5"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)5:as.factor(endo_01)1"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(endo_01)1"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)6"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)6:as.factor(endo_01)1"],
+                                   Ps_par_fert$beta_Ps[,"(Intercept)"]+Ps_par_fert$beta_Ps[,"as.factor(endo_01)1"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)7"]+Ps_par_fert$beta_Ps[,"as.factor(age_lump)7:as.factor(endo_01)1"]),
+                             2,quantile,probs=c(0.1,0.25,0.5,0.75,0.9)))
+
+
+pdf("manuscript/figures/age_specific_fertility.pdf",height = 5, width = 11,useDingbats = F)
 par(mfrow=c(2,4),mar=c(4,4,2,1))
-plot(Ap_flow$age_lump,Ap_flow$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
-     xlim=c(-0.5,6.5),ylim=c(0,10),axes=F)
-points(jitter(Ap_flow$age_lump[Ap_flow$endo_01==0])-0.25,
-       jitter(Ap_flow$flw_count_t[Ap_flow$endo_01==0],factor=0.1),col=alpha("tomato",0.25))
-points(jitter(Ap_flow$age_lump[Ap_flow$endo_01==1])+0.25,
-       jitter(Ap_flow$flw_count_t[Ap_flow$endo_01==1],factor=0.1),col=alpha("cornflowerblue",0.25))
+ylim_quantile<-0.95
+plot(Ap_fert$age_lump,Ap_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
+     xlim=c(-0.5,6.5),ylim=c(0,quantile(Ap_fert$flw_count_t,ylim_quantile)),axes=F)
+points(jitter(Ap_fert$age_lump[Ap_fert$endo_01==0])-0.25,
+       jitter(Ap_fert$flw_count_t[Ap_fert$endo_01==0],factor=0.1),col=alpha("tomato",0.25))
+points(jitter(Ap_fert$age_lump[Ap_fert$endo_01==1])+0.25,
+       jitter(Ap_fert$flw_count_t[Ap_fert$endo_01==1],factor=0.1),col=alpha("cornflowerblue",0.25))
 points((0:6)-.1,Ap_em_fert[3,1:7],pch=16,cex=2,col="tomato")
 arrows((0:6)-.1,Ap_em_fert[2,1:7],
        (0:6)-.1,Ap_em_fert[4,1:7],length=0,lwd=3,col="tomato")
@@ -575,8 +726,131 @@ arrows((0:6)+.1,Ap_ep_fert[1,1:7],
        (0:6)+.1,Ap_ep_fert[5,1:7],length=0,lwd=1,col="cornflowerblue")
 title("Agrostis perennans",font.main=3,adj=0)
 axis(1,at=0:6,labels=c("0","1","2","3","4","5","6+"))
-axis(2,at=c(0,0.25,0.5,0.75,1))
+axis(2,at=0:round(quantile(Ap_fert$flw_count_t,ylim_quantile)))
 
+plot(Er_fert$age_lump,Er_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
+     xlim=c(-0.5,4.5),ylim=c(0,quantile(Er_fert$flw_count_t,ylim_quantile)),axes=F)
+points(jitter(Er_fert$age_lump[Er_fert$endo_01==0])-0.25,
+       jitter(Er_fert$flw_count_t[Er_fert$endo_01==0],factor=0.1),col=alpha("tomato",0.25))
+points(jitter(Er_fert$age_lump[Er_fert$endo_01==1])+0.25,
+       jitter(Er_fert$flw_count_t[Er_fert$endo_01==1],factor=0.1),col=alpha("cornflowerblue",0.25))
+points((0:4)-.1,Er_em_fert[3,1:5],pch=16,cex=2,col="tomato")
+arrows((0:4)-.1,Er_em_fert[2,1:5],
+       (0:4)-.1,Er_em_fert[4,1:5],length=0,lwd=3,col="tomato")
+arrows((0:4)-.1,Er_em_fert[1,1:5],
+       (0:4)-.1,Er_em_fert[5,1:5],length=0,lwd=1,col="tomato")
+points((0:4)+.1,Er_ep_fert[3,1:5],pch=16,cex=2,col="cornflowerblue")
+arrows((0:4)+.1,Er_ep_fert[2,1:5],
+       (0:4)+.1,Er_ep_fert[4,1:5],length=0,lwd=3,col="cornflowerblue")
+arrows((0:4)+.1,Er_ep_fert[1,1:5],
+       (0:4)+.1,Er_ep_fert[5,1:5],length=0,lwd=1,col="cornflowerblue")
+title("Elymus villosus",font.main=3,adj=0)
+axis(1,at=0:4,labels=c("0","1","2","3","4+"))
+axis(2,at=0:round(quantile(Er_fert$flw_count_t,ylim_quantile)))
+
+plot(Ev_fert$age_lump,Ev_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
+     xlim=c(-0.5,4.5),ylim=c(0,quantile(Ev_fert$flw_count_t,ylim_quantile)),axes=F)
+points(jitter(Ev_fert$age_lump[Ev_fert$endo_01==0])-0.25,
+       jitter(Ev_fert$flw_count_t[Ev_fert$endo_01==0],factor=0.1),col=alpha("tomato",0.25))
+points(jitter(Ev_fert$age_lump[Ev_fert$endo_01==1])+0.25,
+       jitter(Ev_fert$flw_count_t[Ev_fert$endo_01==1],factor=0.1),col=alpha("cornflowerblue",0.25))
+points((0:4)-.1,Ev_em_fert[3,1:5],pch=16,cex=2,col="tomato")
+arrows((0:4)-.1,Ev_em_fert[2,1:5],
+       (0:4)-.1,Ev_em_fert[4,1:5],length=0,lwd=3,col="tomato")
+arrows((0:4)-.1,Ev_em_fert[1,1:5],
+       (0:4)-.1,Ev_em_fert[5,1:5],length=0,lwd=1,col="tomato")
+points((0:4)+.1,Ev_ep_fert[3,1:5],pch=16,cex=2,col="cornflowerblue")
+arrows((0:4)+.1,Ev_ep_fert[2,1:5],
+       (0:4)+.1,Ev_ep_fert[4,1:5],length=0,lwd=3,col="cornflowerblue")
+arrows((0:4)+.1,Ev_ep_fert[1,1:5],
+       (0:4)+.1,Ev_ep_fert[5,1:5],length=0,lwd=1,col="cornflowerblue")
+title("Elymus virginicus",font.main=3,adj=0)
+axis(1,at=0:4,labels=c("0","1","2","3","4+"))
+axis(2,at=0:round(quantile(Ev_fert$flw_count_t,ylim_quantile)))
+
+plot(Fs_fert$age_lump,Fs_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
+     xlim=c(-0.5,6.5),ylim=c(0,quantile(Fs_fert$flw_count_t,ylim_quantile)),axes=F)
+points(jitter(Fs_fert$age_lump[Fs_fert$endo_01==0])-0.25,
+       jitter(Fs_fert$flw_count_t[Fs_fert$endo_01==0],factor=0.1),col=alpha("tomato",0.25))
+points(jitter(Fs_fert$age_lump[Fs_fert$endo_01==1])+0.25,
+       jitter(Fs_fert$flw_count_t[Fs_fert$endo_01==1],factor=0.1),col=alpha("cornflowerblue",0.25))
+points((0:6)-.1,Fs_em_fert[3,1:7],pch=16,cex=2,col="tomato")
+arrows((0:6)-.1,Fs_em_fert[2,1:7],
+       (0:6)-.1,Fs_em_fert[4,1:7],length=0,lwd=3,col="tomato")
+arrows((0:6)-.1,Fs_em_fert[1,1:7],
+       (0:6)-.1,Fs_em_fert[5,1:7],length=0,lwd=1,col="tomato")
+points((0:6)+.1,Fs_ep_fert[3,1:7],pch=16,cex=2,col="cornflowerblue")
+arrows((0:6)+.1,Fs_ep_fert[2,1:7],
+       (0:6)+.1,Fs_ep_fert[4,1:7],length=0,lwd=3,col="cornflowerblue")
+arrows((0:6)+.1,Fs_ep_fert[1,1:7],
+       (0:6)+.1,Fs_ep_fert[5,1:7],length=0,lwd=1,col="cornflowerblue")
+title("Festuca subverticillata",font.main=3,adj=0)
+axis(1,at=0:6,labels=c("0","1","2","3","4","5","6+"))
+axis(2,at=0:round(quantile(Fs_fert$flw_count_t,ylim_quantile)))
+
+plot(Pa_fert$age_lump,Pa_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
+     xlim=c(-0.5,2.5),ylim=c(0,1),axes=F)
+points(jitter(Pa_fert$age_lump[Pa_fert$endo_01==0])-0.25,
+       jitter(Pa_fert$flw_count_t[Pa_fert$endo_01==0],factor=0.1),col=alpha("tomato",0.25))
+points(jitter(Pa_fert$age_lump[Pa_fert$endo_01==1])+0.25,
+       jitter(Pa_fert$flw_count_t[Pa_fert$endo_01==1],factor=0.1),col=alpha("cornflowerblue",0.25))
+points((0:2)-.1,Pa_em_fert[3,1:3],pch=16,cex=2,col="tomato")
+arrows((0:2)-.1,Pa_em_fert[2,1:3],
+       (0:2)-.1,Pa_em_fert[4,1:3],length=0,lwd=3,col="tomato")
+arrows((0:2)-.1,Pa_em_fert[1,1:3],
+       (0:2)-.1,Pa_em_fert[5,1:3],length=0,lwd=1,col="tomato")
+points((0:2)+.1,Pa_ep_fert[3,1:3],pch=16,cex=2,col="cornflowerblue")
+arrows((0:2)+.1,Pa_ep_fert[2,1:3],
+       (0:2)+.1,Pa_ep_fert[4,1:3],length=0,lwd=3,col="cornflowerblue")
+arrows((0:2)+.1,Pa_ep_fert[1,1:3],
+       (0:2)+.1,Pa_ep_fert[5,1:3],length=0,lwd=1,col="cornflowerblue")
+title("Poa alsodes",font.main=3,adj=0)
+axis(1,at=0:2,labels=c("0","1","2+"))
+axis(2,at=0:1)
+
+plot(Pu_fert$age_lump,Pu_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
+     xlim=c(-0.5,5.5),ylim=c(0,quantile(Pu_fert$flw_count_t,ylim_quantile)),axes=F)
+points(jitter(Pu_fert$age_lump[Pu_fert$endo_01==0])-0.25,
+       jitter(Pu_fert$flw_count_t[Pu_fert$endo_01==0],factor=0.1),col=alpha("tomato",0.25))
+points(jitter(Pu_fert$age_lump[Pu_fert$endo_01==1])+0.25,
+       jitter(Pu_fert$flw_count_t[Pu_fert$endo_01==1],factor=0.1),col=alpha("cornflowerblue",0.25))
+points((0:5)-.1,Pu_em_fert[3,1:6],pch=16,cex=2,col="tomato")
+arrows((0:5)-.1,Pu_em_fert[2,1:6],
+       (0:5)-.1,Pu_em_fert[4,1:6],length=0,lwd=3,col="tomato")
+arrows((0:5)-.1,Pu_em_fert[1,1:6],
+       (0:5)-.1,Pu_em_fert[5,1:6],length=0,lwd=1,col="tomato")
+points((0:5)+.1,Pu_ep_fert[3,1:6],pch=16,cex=2,col="cornflowerblue")
+arrows((0:5)+.1,Pu_ep_fert[2,1:6],
+       (0:5)+.1,Pu_ep_fert[4,1:6],length=0,lwd=3,col="cornflowerblue")
+arrows((0:5)+.1,Pu_ep_fert[1,1:6],
+       (0:5)+.1,Pu_ep_fert[5,1:6],length=0,lwd=1,col="cornflowerblue")
+title("Poa autumnalis",font.main=3,adj=0)
+axis(1,at=0:5,labels=c("0","1","2","3","4","5+"))
+axis(2,at=0:round(quantile(Pu_fert$flw_count_t,ylim_quantile)))
+
+plot(Ps_fert$age_lump,Ps_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
+     xlim=c(-0.5,7.5),ylim=c(0,quantile(Ps_fert$flw_count_t,ylim_quantile)),axes=F)
+points(jitter(Ps_fert$age_lump[Ps_fert$endo_01==0])-0.25,
+       jitter(Ps_fert$flw_count_t[Ps_fert$endo_01==0],factor=0.1),col=alpha("tomato",0.25))
+points(jitter(Ps_fert$age_lump[Ps_fert$endo_01==1])+0.25,
+       jitter(Ps_fert$flw_count_t[Ps_fert$endo_01==1],factor=0.1),col=alpha("cornflowerblue",0.25))
+points((0:7)-.1,Ps_em_fert[3,1:8],pch=16,cex=2,col="tomato")
+arrows((0:7)-.1,Ps_em_fert[2,1:8],
+       (0:7)-.1,Ps_em_fert[4,1:8],length=0,lwd=3,col="tomato")
+arrows((0:7)-.1,Ps_em_fert[1,1:8],
+       (0:7)-.1,Ps_em_fert[5,1:8],length=0,lwd=1,col="tomato")
+points((0:7)+.1,Ps_ep_fert[3,1:8],pch=16,cex=2,col="cornflowerblue")
+arrows((0:7)+.1,Ps_ep_fert[2,1:8],
+       (0:7)+.1,Ps_ep_fert[4,1:8],length=0,lwd=3,col="cornflowerblue")
+arrows((0:7)+.1,Ps_ep_fert[1,1:8],
+       (0:7)+.1,Ps_ep_fert[5,1:8],length=0,lwd=1,col="cornflowerblue")
+title("Poa sylvestris",font.main=3,adj=0)
+axis(1,at=0:7,labels=c("0","1","2","3","4","5","6","7+"))
+axis(2,at=0:round(quantile(Ps_fert$flw_count_t,ylim_quantile)))
+
+plot(0,0,type="n",axes=F,xlab=" ",ylab=" ")
+legend("left",legend=c("E-","E+"),col=c("tomato","cornflowerblue"),pch=16,cex=2)
+dev.off()
 
 # recruitment model -------------------------------------------------------
 ## estimate the rate of recruitment per inflorescence (which is the unit of fertility)
