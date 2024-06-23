@@ -6,6 +6,7 @@ rstan_options(auto_write = TRUE)
 library(bayesplot)
 library(scales)
 library(xtable)
+library(popbio)
 
 ## functions
 invlogit<-function(x){exp(x)/(1+exp(x))}
@@ -18,16 +19,19 @@ setwd(tom)
 ## read in QAQC'd data
 ## as of 4.18.2024 there are still some data issues (see comments) but this is 
 ## far enough along to proceed
-ltreb<-read.csv("./data prep/ltreb_allspp_qaqc.csv") %>% 
-  ## drop original plants
-  filter(original==0) %>% 
+ltreb_allplants<-read.csv("./data prep/ltreb_allspp_qaqc.csv") %>% 
   ## drop LOAR (so few recruits)
   filter(species!="LOAR") %>% 
-  ## drop rows with -1 ages (this is first appearance in)
-  filter(age>=0) %>% 
   ## convert species to factor
   mutate(species=factor(species))
 
+##drop original plants
+ltreb<-ltreb_allplants %>% 
+  ## drop rows with -1 ages (this is first appearance in year t1 -- note this also drops originals! [age is NA])
+  filter(age>=0) %>% 
+  ## drop original plants
+  filter(original==0)
+  
 ## what are the age limits we can use for each species
 table(ltreb$age,ltreb$species,ltreb$endo_01)
 em_tab <- table(ltreb$age[ltreb$endo_01==0],ltreb$species[ltreb$endo_01==0])
@@ -855,7 +859,253 @@ dev.off()
 # recruitment model -------------------------------------------------------
 ## estimate the rate of recruitment per inflorescence (which is the unit of fertility)
 
+## first summarise total number of infs produced per plot per year -- including originals!
+ltreb_allplants %>% 
+  group_by(species,plot,endo_01,year_t) %>% 
+  summarise(total_infs = sum(flw_count_t,na.rm=T)) %>% 
+  mutate(year_tp1 = year_t+1,
+         year_tp2 = year_t+2)->inf_counts
 
+## second summarise total number of recruits (0-yo's) per plot per year
+ltreb_age_lump %>% 
+  filter(age_lump==0) %>% 
+  group_by(species,plot,endo_01,year_t) %>% 
+  summarise(recruits=n())->recruit_counts
+
+## join two data frames -- this uses two joins to get the 2-year lag
+left_join(left_join(recruit_counts,
+          inf_counts %>% select(species,plot,endo_01,year_tp1,total_infs),
+          by=c("species","plot","endo_01","year_t"="year_tp1")),
+          inf_counts %>% select(species,plot,endo_01,year_tp2,total_infs),
+          by=c("species","plot","endo_01","year_t"="year_tp2")) %>% 
+  rename(recruits_t = recruits,
+         total_infs_tm1 = total_infs.x,
+         total_infs_tm2 = total_infs.y) -> recruits_infs
+
+plot(recruits_infs$total_infs_tm1,recruits_infs$recruits_t)
+plot(recruits_infs$total_infs_tm2,recruits_infs$recruits_t)
+plot(recruits_infs$total_infs_tm2+recruits_infs$total_infs_tm1,recruits_infs$recruits_t)
+
+## are there any cases of non-zero recruitment with zero infs in the last two years?
+recruits_infs %>% filter(recruits_t>0 & total_infs_tm1==0 & total_infs_tm2==0)
+## yeah this happened in 21 plot-years -- so there is potentially a longer-lived seed bank
+## but I am going to limit this to a two-year seed bank
+
+## there are some NAs in the inf data...why?
+recruits_infs %>% filter(is.na(total_infs_tm1))
+inf_counts %>% filter(species=="ELVI",plot==95)
+## there are some plots that have no inf data for some years
+## not sure why, but proceeding for now to drop NAs
+recruits_infs %>% 
+  mutate(species_index = as.numeric(species),
+         year_index = year_t-(min(year_t)-1)) %>% 
+  drop_na() -> recruits_infs
+
+## if I just wanted raw ratios of recruits:infs, what would that look like?
+hist(recruits_infs$recruits_t/recruits_infs$total_infs_tm1)
+hist(recruits_infs$recruits_t/recruits_infs$total_infs_tm2)
+
+## prep data
+recruit_dat<-list(N=nrow(recruits_infs),
+                  y=recruits_infs$recruits_t,
+                  f1=recruits_infs$total_infs_tm1,
+                  f2=recruits_infs$total_infs_tm2,
+                  n_spp=length(levels(recruits_infs$species)),
+                  n_years=max(recruits_infs$year_index),
+                  n_plots=max(recruits_infs$plot),
+                  species=recruits_infs$species_index,
+                  endo=recruits_infs$endo_01,
+                  plot=recruits_infs$plot,
+                  year=recruits_infs$year_index
+  )
+
+## fit stan model
+recruit_model <- stan_model("analysis/Stan/ltreb_recruitment.stan")
+recruit_fit<-sampling(recruit_model,data = recruit_dat,
+                   chains=3,
+                   control = list(adapt_delta=0.99,stepsize=0.1),
+                   iter=5000,thin=2,
+                   pars = c("alpha1","beta1",
+                            "alpha2","beta2",
+                            "sigma_year","sigma_plot",
+                            "y_sim"), 
+                   save_warmup=F)
+write_rds(recruit_fit,"analysis/Stan/recruit_fit.rds")
+recruit_fit<-read_rds("analysis/Stan/recruit_fit.rds")
+
+## check a few trace plots
+bayesplot::mcmc_trace(recruit_fit,pars = c("sigma_year","sigma_plot"))
+bayesplot::mcmc_trace(recruit_fit,pars = c("alpha1[4]","beta1[4]",
+                                           "alpha2[4]","beta2[4]"))
+recruit_sim<-rstan::extract(recruit_fit,"y_sim")
+ppc_dens_overlay(recruit_dat$y,recruit_sim$y_sim)
+
+recruit_params<-rstan::extract(recruit_fit,c("alpha1","beta1",
+                                             "alpha2","beta2"))
+r1_em<-apply(exp(recruit_params$alpha1),2,quantile,probs=quantile_probs)
+r1_ep<-apply(exp(recruit_params$alpha1+recruit_params$beta1),2,quantile,probs=quantile_probs)
+r2_em<-apply(exp(recruit_params$alpha2),2,quantile,probs=quantile_probs)
+r2_ep<-apply(exp(recruit_params$alpha2+recruit_params$beta2),2,quantile,probs=quantile_probs)
+
+##make a plot of parameter estimates
+spp_list<-c("A.p.","F.s.","E.vil.","E.vir.","P.al.","P.au.","P.s.")
+pdf("manuscript/figures/recruitment.pdf",height = 6, width = 6,useDingbats = F)
+plot(1:7,r1_em[3,],type="n",ylim=c(0,max(c(r1_em,r1_ep,r2_em,r2_ep))),xlim=c(0.8,7.2),
+     ylab="Recruits / Inflorescence",xlab="Species",axes=F,cex.lab=1.2)
+arrows((1:7)-.2,r1_em[2,],
+       (1:7)-.2,r1_em[4,],length=0,lwd=3,col="tomato")
+arrows((1:7)-.2,r1_em[1,],
+       (1:7)-.2,r1_em[5,],length=0,lwd=1,col="tomato")
+points((1:7)-.2,r1_em[3,],pch=16,cex=2,col="tomato")
+
+arrows((1:7)-.1,r2_em[2,],
+       (1:7)-.1,r2_em[4,],length=0,lwd=3,col="tomato")
+arrows((1:7)-.1,r2_em[1,],
+       (1:7)-.1,r2_em[5,],length=0,lwd=1,col="tomato")
+points((1:7)-.1,r2_em[3,],pch=21,cex=2,col="tomato",bg="white")
+
+arrows((1:7)+.1,r1_ep[2,],
+       (1:7)+.1,r1_ep[4,],length=0,lwd=3,col="cornflowerblue")
+arrows((1:7)+.1,r1_ep[1,],
+       (1:7)+.1,r1_ep[5,],length=0,lwd=1,col="cornflowerblue")
+points((1:7)+.1,r1_ep[3,],pch=16,cex=2,col="cornflowerblue")
+
+arrows((1:7)+.2,r2_ep[2,],
+       (1:7)+.2,r2_ep[4,],length=0,lwd=3,col="cornflowerblue")
+arrows((1:7)+.2,r2_ep[1,],
+       (1:7)+.2,r2_ep[5,],length=0,lwd=1,col="cornflowerblue")
+points((1:7)+.2,r2_ep[3,],pch=21,cex=2,col="cornflowerblue",bg="white")
+box()
+axis(1,at=1:7,labels=spp_list,font=3)
+axis(2,at=pretty(c(r1_em,r1_ep,r2_em,r2_ep)))
+legend("topright",legend=c("E-","E+",expression(Infs[t-1]),expression(Infs[t-2])),ncol=2,
+       pch=c(16,16,16,1),col=c("tomato","cornflowerblue","black","black"),cex=1.2)
+dev.off()
+
+
+# Assemble matrices from posterior medians --------------------------------------------------
+##Ap eminus
+Ap_dim<-age_limits$lump_age[age_limits$species=="AGPE"]+2
+Ap_em_mat<-matrix(0,Ap_dim,Ap_dim)
+## inf production goes in top row (except first element)
+Ap_em_mat[1,2:Ap_dim]<-Ap_em_fert[3,]
+## rest of the second row is recruitment from last year's infs
+Ap_em_mat[2,2:Ap_dim]<-r1_em[3,1]*Ap_em_fert[3,]
+##subdiagonals are the inf bank recruitment rate and age-specific survival
+diag(Ap_em_mat[-1,-ncol(Ap_em_mat)])<-c(r2_em[3,1],Ap_em_surv[3,1:6])
+## survival of the terminal age class goes in the bottom right corner
+Ap_em_mat[Ap_dim,Ap_dim]<-Ap_em_surv[3,7]
+## Ap_eplus
+Ap_ep_mat<-matrix(0,Ap_dim,Ap_dim)
+Ap_ep_mat[1,2:Ap_dim]<-Ap_ep_fert[3,]
+Ap_ep_mat[2,2:Ap_dim]<-r1_ep[3,1]*Ap_ep_fert[3,]
+diag(Ap_ep_mat[-1,-ncol(Ap_ep_mat)])<-c(r2_ep[3,1],Ap_ep_surv[3,1:6])
+Ap_ep_mat[Ap_dim,Ap_dim]<-Ap_ep_surv[3,7]
+
+#Fs eminus
+Fs_dim<-age_limits$lump_age[age_limits$species=="FESU"]+2
+Fs_em_mat<-matrix(0,Fs_dim,Fs_dim)
+Fs_em_mat[1,2:Fs_dim]<-Fs_em_fert[3,]
+Fs_em_mat[2,2:Fs_dim]<-r1_em[3,2]*Fs_em_fert[3,]
+diag(Fs_em_mat[-1,-ncol(Fs_em_mat)])<-c(r2_em[3,2],Fs_em_surv[3,1:6])
+Fs_em_mat[Fs_dim,Fs_dim]<-Fs_em_surv[3,7]
+#Fs eplus
+Fs_ep_mat<-matrix(0,Fs_dim,Fs_dim)
+Fs_ep_mat[1,2:Fs_dim]<-Fs_ep_fert[3,]
+Fs_ep_mat[2,2:Fs_dim]<-r1_ep[3,2]*Fs_ep_fert[3,]
+diag(Fs_ep_mat[-1,-ncol(Fs_ep_mat)])<-c(r2_ep[3,2],Fs_ep_surv[3,1:6])
+Fs_ep_mat[Fs_dim,Fs_dim]<-Fs_ep_surv[3,7]
+
+#Er eminus
+Er_dim<-age_limits$lump_age[age_limits$species=="ELRI"]+2
+Er_em_mat<-matrix(0,Er_dim,Er_dim)
+Er_em_mat[1,2:Er_dim]<-Er_em_fert[3,]
+Er_em_mat[2,2:Er_dim]<-r1_em[3,3]*Er_em_fert[3,]
+diag(Er_em_mat[-1,-ncol(Er_em_mat)])<-c(r2_em[3,3],Er_em_surv[3,1:4])
+Er_em_mat[Er_dim,Er_dim]<-Er_em_surv[3,5]
+#Er eplus
+Er_ep_mat<-matrix(0,Er_dim,Er_dim)
+Er_ep_mat[1,2:Er_dim]<-Er_ep_fert[3,]
+Er_ep_mat[2,2:Er_dim]<-r1_ep[3,3]*Er_ep_fert[3,]
+diag(Er_ep_mat[-1,-ncol(Er_ep_mat)])<-c(r2_ep[3,3],Er_ep_surv[3,1:4])
+Er_ep_mat[Er_dim,Er_dim]<-Er_ep_surv[3,5]
+
+#Ev eminus
+Ev_dim<-age_limits$lump_age[age_limits$species=="ELVI"]+2
+Ev_em_mat<-matrix(0,Ev_dim,Ev_dim)
+Ev_em_mat[1,2:Ev_dim]<-Ev_em_fert[3,]
+Ev_em_mat[2,2:Ev_dim]<-r1_em[3,4]*Ev_em_fert[3,]
+diag(Ev_em_mat[-1,-ncol(Ev_em_mat)])<-c(r2_em[3,4],Ev_em_surv[3,1:4])
+Ev_em_mat[Ev_dim,Ev_dim]<-Ev_em_surv[3,5]
+#Ev eplus
+Ev_ep_mat<-matrix(0,Ev_dim,Ev_dim)
+Ev_ep_mat[1,2:Ev_dim]<-Ev_ep_fert[3,]
+Ev_ep_mat[2,2:Ev_dim]<-r1_ep[3,4]*Ev_ep_fert[3,]
+diag(Ev_ep_mat[-1,-ncol(Ev_ep_mat)])<-c(r2_ep[3,4],Ev_ep_surv[3,1:4])
+Ev_ep_mat[Ev_dim,Ev_dim]<-Ev_ep_surv[3,5]
+
+#Pa eminus
+Pa_dim<-age_limits$lump_age[age_limits$species=="POAL"]+2
+Pa_em_mat<-matrix(0,Pa_dim,Pa_dim)
+Pa_em_mat[1,2:Pa_dim]<-Pa_em_fert[3,]
+Pa_em_mat[2,2:Pa_dim]<-r1_em[3,5]*Pa_em_fert[3,]
+diag(Pa_em_mat[-1,-ncol(Pa_em_mat)])<-c(r2_em[3,5],Pa_em_surv[3,1:2])
+Pa_em_mat[Pa_dim,Pa_dim]<-Pa_em_surv[3,3]
+#Pa eplus
+Pa_ep_mat<-matrix(0,Pa_dim,Pa_dim)
+Pa_ep_mat[1,2:Pa_dim]<-Pa_ep_fert[3,]
+Pa_ep_mat[2,2:Pa_dim]<-r1_ep[3,5]*Pa_ep_fert[3,]
+diag(Pa_ep_mat[-1,-ncol(Pa_ep_mat)])<-c(r2_ep[3,5],Pa_ep_surv[3,1:2])
+Pa_ep_mat[Pa_dim,Pa_dim]<-Pa_ep_surv[3,3]
+
+#Pu eminus
+Pu_dim<-age_limits$lump_age[age_limits$species=="POAU"]+2
+Pu_em_mat<-matrix(0,Pu_dim,Pu_dim)
+Pu_em_mat[1,2:Pu_dim]<-Pu_em_fert[3,]
+Pu_em_mat[2,2:Pu_dim]<-r1_em[3,6]*Pu_em_fert[3,]
+diag(Pu_em_mat[-1,-ncol(Pu_em_mat)])<-c(r2_em[3,6],Pu_em_surv[3,1:5])
+Pu_em_mat[Pu_dim,Pu_dim]<-Pu_em_surv[3,6]
+#Pu eplus
+Pu_ep_mat<-matrix(0,Pu_dim,Pu_dim)
+Pu_ep_mat[1,2:Pu_dim]<-Pu_ep_fert[3,]
+Pu_ep_mat[2,2:Pu_dim]<-r1_ep[3,6]*Pu_ep_fert[3,]
+diag(Pu_ep_mat[-1,-ncol(Pu_ep_mat)])<-c(r2_ep[3,6],Pu_ep_surv[3,1:5])
+Pu_ep_mat[Pu_dim,Pu_dim]<-Pu_ep_surv[3,6]
+
+#Ps eminus
+Ps_dim<-age_limits$lump_age[age_limits$species=="POSY"]+2
+Ps_em_mat<-matrix(0,Ps_dim,Ps_dim)
+Ps_em_mat[1,2:Ps_dim]<-Ps_em_fert[3,]
+Ps_em_mat[2,2:Ps_dim]<-r1_em[3,7]*Ps_em_fert[3,]
+diag(Ps_em_mat[-1,-ncol(Ps_em_mat)])<-c(r2_em[3,7],Ps_em_surv[3,1:7])
+Ps_em_mat[Ps_dim,Ps_dim]<-Ps_em_surv[3,8]
+#Ps eplus
+Ps_ep_mat<-matrix(0,Ps_dim,Ps_dim)
+Ps_ep_mat[1,2:Ps_dim]<-Ps_ep_fert[3,]
+Ps_ep_mat[2,2:Ps_dim]<-r1_ep[3,7]*Ps_ep_fert[3,]
+diag(Ps_ep_mat[-1,-ncol(Ps_ep_mat)])<-c(r2_ep[3,7],Ps_ep_surv[3,1:7])
+Ps_ep_mat[Ps_dim,Ps_dim]<-Ps_ep_surv[3,8]
+
+## bundle matrices into list
+ltreb_matrix_list<-list(list(Ap_em_mat,Ap_ep_mat),
+                        list(Fs_em_mat,Fs_ep_mat),
+                        list(Er_em_mat,Er_ep_mat),
+                        list(Ev_em_mat,Ev_ep_mat),
+                        list(Pa_em_mat,Pa_ep_mat),
+                        list(Pu_em_mat,Pu_ep_mat),
+                        list(Ps_em_mat,Ps_ep_mat))
+names(ltreb_matrix_list)<-spp_list
+names(ltreb_matrix_list$A.p.)<-names(ltreb_matrix_list$F.s.)<-names(ltreb_matrix_list$E.vil.)<-names(ltreb_matrix_list$E.vir.)<-names(ltreb_matrix_list$P.al.)<-names(ltreb_matrix_list$P.au.)<-names(ltreb_matrix_list$P.s.)<-c("Em","Ep")
+lapply(ltreb_matrix_list$A.p., lambda)
+lapply(ltreb_matrix_list$F.s., lambda)
+lapply(ltreb_matrix_list$E.vil., lambda)
+lapply(ltreb_matrix_list$E.vir., lambda)
+lapply(ltreb_matrix_list$P.al., lambda)
+lapply(ltreb_matrix_list$P.au., lambda)
+lapply(ltreb_matrix_list$P.s., lambda)
+
+##write matrices to file
+write_rds(ltreb_matrix_list,"analysis/matrix_list.rds")
 
 # basement: data simulation -----------------------------------------------
 # simulate a simple bernoulli mixed model and see if I can correctly use stan's bernoulli_logit_glm()
