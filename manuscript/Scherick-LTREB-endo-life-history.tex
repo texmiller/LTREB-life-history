@@ -179,8 +179,9 @@ While the inflorescence counts were zero-heavy, posterior predictive checks conf
 Finally, we modeled the number of recruits of species $j$ observed in plot $k$ and year $l$ as Poisson-distributed with mean $\lambda_{jkl}$. 
 We defined this mean as a function of the total number of inflorescneces ($inf$) produced in plot $k$ in the previous year $l-1$, allowing for random plot and year effects as above:
 \begin{align*}
-	\lambda_{jkl} = exp(\alpha^{j} + \beta^{j}*e_k + \rho_k + \tau^{j}_{l}) * inf_{k,l-1}\\
-	\rho_k \sim N(0,\sigma^2_{plot})\\
+	\lambda_{jkl} = r^{1}_{jk} * inf_{k,l-1} + r^{2}_{jk} * inf_{k,l-2} + 0.01\\
+	r^{1}_{jk} = exp(\alpha1^{j} + \beta1^{j}*e_k + \rho_k + \tau^{j}_{l})\\
+	r^{2}_{jk} = exp(\alpha2^{j} + \beta2^{j}*e_k + \rho_k + \tau^{j}_{l})\\	\rho_k \sim N(0,\sigma^2_{plot})\\
 	\tau^{j}_{l} \sim N(0,\sigma^2_{year})\\
 \end{align*}
 Species-specific parameters $\alpha^{j}$ control the rate at which last year's inflorescences generate this year's recruitment, and parameters $\beta^{j}$ control endophyte effects on this rate. 
@@ -207,6 +208,14 @@ Eq. \ref{eq:recruit_mod} implies that if no inflorescences are produced in a plo
 		\includegraphics[width=1\linewidth]{figures/age_specific_fertility}
 		\caption{}
 		\label{fig:age_surv}
+	\end{center}
+\end{figure}
+
+\begin{figure}
+	\begin{center}
+		\includegraphics[width=0.75\linewidth]{figures/recruitment}
+		\caption{}
+		\label{fig:recruitment}
 	\end{center}
 \end{figure}
 

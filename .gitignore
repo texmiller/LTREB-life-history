@@ -11,3 +11,5 @@ analysis/Stan/ltreb_age_fertility.rds
 analysis/Stan/fert_fit.rds
 analysis/Stan/fert_fit.rds
 *.rds
+.Rhistory
+analysis/Stan/fert_fit.rds
