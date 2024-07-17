@@ -141,12 +141,13 @@ We used vague priors except where noted.
 
 For age-specific vital rates, age was modeled as a categorical factor rather than a continuous covariate; this allowed for maximally flexible age-dependence without having to assume a functional form of how vital rates varied with age. 
 Due to mortality, sample sizes decreased with increasing age (Table).
-For each species we pooled advanced ages with fewer than 10 observations each into a combined ``old'' age class. 
-For example, if the oldest age with at least 10 observations was 5 years old, everything older than 5 was pooled as age class ``6+''.
-When S+ and S- populations differed in the upper age that satisfied $n \geq 10$, we used the younger age of the two to define the ``old'' age group. 
-This difference was most pronounced in \textit{Poa alsodes}, where the oldest age with $n \geq 10$ was $1yo$ for S- and $4yo$ for S+ (Table). 
+For each species we pooled advanced ages with fewer than 20 observations each into a combined ``old'' age class. 
+For example, if the oldest age with at least 20 observations was 4 years old, everything older than 4 was pooled as age class ``5+''.
+When S+ and S- populations differed in the upper age that satisfied $n \geq 20$, we used the younger age of the two to define the ``old'' age group. 
+This difference was most pronounced in \textit{Poa alsodes}, where the oldest age with $n \geq 20$ was $1yo$ for S- and $4yo$ for S+ (Table). 
 Therefore, age classes for the \textit{P. alsodes} vital rate models were 0, 1, and 2+. 
-All other host species had more even age representation between S+ and S- and greater representation of later ages, with ``old'' age groups reaching 4+ for \textit{E. villosus} and \textit{E. virginicus}, 5+ for \textit{P. autumnalis}, 6+ for \textit{A. perennans} and \textit{F. subverticillata}, and 7+ for \textit{P. sylvestris}. 
+Other host species had more even age representation between S+ and S- and greater representation of older ages.
+The ``old'' age groups were 2+ for \textit{E. villosus} and \textit{P. alsodes}, 3+ for \textit{E. virginicus}, 4+ for \textit{P. autumnalis}, 5+ for \textit{A. perennans} and \textit{F. subverticillata}, and 6+ for \textit{P. sylvestris}. 
 
 \subsubsection*{Age-specific survival}
 The survival model included fixed effects of host species, age class, and enodphyte status and random effects associated with year-to-year and plot-to-plot variation. 
@@ -177,7 +178,7 @@ While the inflorescence counts were zero-heavy, posterior predictive checks conf
 
 \subsubsection*{Recruitment rate}
 Finally, we modeled the number of recruits of species $j$ observed in plot $k$ and year $l$ as Poisson-distributed with mean $\lambda_{jkl}$. 
-We defined this mean as a function of the total number of inflorescneces ($inf$) produced in plot $k$ in the previous year $l-1$, allowing for random plot and year effects as above:
+We defined this mean as a function of the total number of inflorescneces ($inf$) produced in plot $k$ in the previous two years ($l-1$ and $l-2$), allowing for random plot and year effects as above:
 \begin{align*}
 	\lambda_{jkl} = r^{1}_{jk} * inf_{k,l-1} + r^{2}_{jk} * inf_{k,l-2} + 0.01\\
 	r^{1}_{jk} = exp(\alpha1^{j} + \beta1^{j}*e_k + \rho_k + \tau^{j}_{l})\\
