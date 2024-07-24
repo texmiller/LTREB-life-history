@@ -185,11 +185,10 @@ We defined this mean as a function of the total number of inflorescneces ($inf$)
 	r^{2}_{jk} = exp(\alpha2^{j} + \beta2^{j}*e_k + \rho_k + \tau^{j}_{l})\\	\rho_k \sim N(0,\sigma^2_{plot})\\
 	\tau^{j}_{l} \sim N(0,\sigma^2_{year})\\
 \end{align*}
-Species-specific parameters $\alpha^{j}$ control the rate at which last year's inflorescences generate this year's recruitment, and parameters $\beta^{j}$ control endophyte effects on this rate. 
+In preliminary analyses we found that seedling recruitment sometimes occurred in plots where there was no flowering in the previous year, which suggested the need to accommodate a seed bank. 
+Species-specific parameters $\alpha1^{j}$ and $\alpha2^{j}$ control the rate at which inflorescences produces one and two years prior, respectively, contribute to recruitment in the current year, and parameters $\beta1^{j}$ and $\beta2^{j}$ control endophyte effects on these rates. 
 Note that the model is agnostic to \emph{how} endophytes effect the inflorescence-to-recruitment rate (e.g., through effects on seed number per inflorescence, seed germination rate, or seedling survival). 
 The covariate $inf_{k,l}$ was calculated for each plot by summing inflorescences across all individuals, including the original plants that are otherwise not included in these analyses, since their reproduction contributed to observed recruitment. 
-We assume that recruitment occurs exclusively from seed production in the preceding year, i.e., no long-lived seed bank. 
-Eq. \ref{eq:recruit_mod} implies that if no inflorescences are produced in a plot, there should be no recruitment in the following year (mostly true??). 
 
 \subsection*{Demographic modeling}
 
