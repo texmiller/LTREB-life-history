@@ -10,7 +10,7 @@ library(tidyverse)
 ## read_excel still used for plot read-in because that is small and simple
 
 # Poa autumnalis in TX ----------------------------------------------------
-
+#hi this is a test
 ## read in raw POAU data from Miller Lab drive folder
 tom_dir<-"G:/Shared drives/Miller Lab/LTREB/POAU/"
 ##bell_dir<-

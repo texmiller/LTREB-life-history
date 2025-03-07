@@ -1,9 +1,15 @@
-setwd("C:/Users/tm9/Dropbox/github/LTREB-life-history")
+setwd("/Users/bell/Documents/GitHub/LTREB-life-history/analysis")
 library(tidyverse)
 library(factoextra)
 ##read in life history outputs
-lifehistorypost<-read.csv("analysis/lifehistorypost.csv")
+lifehistorypost<-read.csv("lifehistorypost.csv")
+age_first_repro =read.csv("first_age_repro")
 
+age_first_repro <- age_first_repro %>%
+  arrange(endo)
+
+age_first_repro <- age_first_repro %>%
+  arrange(species)
 # PCA ---------------------------------------------------------------------
 
 ## first reduce data frame down to averages
@@ -31,8 +37,8 @@ lifehistorypostmean %>%
   select(species,entropyd_em,entropyd_ep) %>% 
   pivot_longer(entropyd_em:entropyd_ep,names_to="endo",values_to="entropyd")->entropyd
 
-pca.dat<-bind_cols(R0$R0,G$G,meanelexp$meanelexp,longevity$longevity,entropyd$entropyd)
-names(pca.dat)<-c("R0","Gen time","Life expect","Longevity","EntropyD")
+pca.dat<-bind_cols(R0$R0,G$G,meanelexp$meanelexp,longevity$longevity,entropyd$entropyd, age_first_repro$min_repro)
+names(pca.dat)<-c("R0","Gen time","Life expect","Longevity","EntropyD","FirstRepro")
 row.names(pca.dat)<-c("AGPE-","AGPE+",
                       "ELRI-","ELRI+",
                       "ELVI-","ELVI+",
