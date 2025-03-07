@@ -188,7 +188,8 @@ indiana$flw_count_t1[!is.na(indiana$size_t1) & is.na(indiana$flw_count_t1)]<-0
 ## check that each time an individual appears it carries the same birth year
 indiana %>% 
   group_by(id) %>% select(birth) %>% 
-  summarize(birth_year=mean(birth,na.rm=T))->birthyears
+  summarize(nbirths=length(unique(birth,na.rm=T))) %>% 
+  filter(nbirths>1)->birthyears
 ## find any non-integer birth years (means they have different birth years in different rows)
 problems<-which(birthyears$birth_year - floor(birthyears$birth_year) != 0)
 ##there are this many individuals with more than one birth year
