@@ -1,9 +1,12 @@
 ## Purpose: fit models for age- and endo-specific survival and fertility
 library(tidyverse)
 library(rstan)
-options(mc.cores = parallel::detectCores())
+options(mc.cores = parallel::detectCores() - 1)
 rstan_options(auto_write = TRUE)
 library(bayesplot)
+library(posterior)
+library(tidybayes)
+library(loo)
 library(scales)
 library(xtable)
 library(popbio)
@@ -14,10 +17,6 @@ library(popdemo)
 ## functions
 invlogit<-function(x){exp(x)/(1+exp(x))}
 prop_zero <- function(x) mean(x == 0)
-
-## set working directory
-tom<-"C:/Users/tm9/Dropbox/github/LTREB-life-history"
-setwd(tom)
 
 ## read in QAQC'd data
 ltreb_allplants<-read.csv("./data prep/ltreb_allspp_qaqc.csv") %>% 
@@ -36,8 +35,8 @@ ltreb<-ltreb_allplants %>%
 ##what are the years represented in this data set?
 range(c(ltreb$year_t,ltreb$year_t1)) ##first recruits are tagged in 2009
 ##how many cohorts?
-length(unique(ltreb$year_t))
-ltreb %>% filter(age==0) %>% group_by(year_t) %>% summarise(n())
+length(unique(ltreb$birth))
+ltreb %>% group_by(birth) %>% summarise(n())
 ##how many total recruits?
 length(unique(ltreb$id))
   
@@ -125,8 +124,9 @@ ltreb %>% left_join(.,age_limits,by=c("species")) %>%
   mutate(age_lump=ifelse(age<lump_age,age,lump_age))->ltreb_age_lump
 
 # survival model ----------------------------------------------------------
-surv_data<-ltreb_age_lump %>% select(species,endo_01,id,plot,year_t,age,age_lump,surv_t1) %>% drop_na() %>% 
+surv_data<-ltreb_age_lump %>% select(species,endo_01,id,plot,birth,year_t,age,age_lump,surv_t1) %>% drop_na() %>% 
   mutate(species_index = as.numeric(species),
+         cohort_index = birth-(min(birth)-1),
          year_index = year_t-(min(year_t)-1),
          endo_index = endo_01+1,
          ind_index = as.numeric(factor(id)))
@@ -156,6 +156,7 @@ Xs_Ps<-model.matrix(~as.factor(age_lump) * as.factor(endo_01),data=Ps_surv)
 
 stan_dat_surv <- list(n_spp=7,
                  n_years=max(surv_data$year_index),
+                 n_cohorts=max(surv_data$cohort_index),
                  n_plots=max(surv_data$plot),
                  ##AGPE
                  y_Ap=Ap_surv$surv_t1, 
@@ -163,6 +164,7 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Ap_dim=ncol(Xs_Ap),
                  X_Ap=Xs_Ap,
                  year_Ap=Ap_surv$year_index,
+                 cohort_Ap=Ap_surv$cohort_index,
                  plot_Ap=Ap_surv$plot,
                  ##ELRI
                  y_Er=Er_surv$surv_t1, 
@@ -170,6 +172,7 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Er_dim=ncol(Xs_Er),
                  X_Er=Xs_Er,
                  year_Er=Er_surv$year_index,
+                 cohort_Er=Er_surv$cohort_index,
                  plot_Er=Er_surv$plot,
                  ##ELVI
                  y_Ev=Ev_surv$surv_t1, 
@@ -177,6 +180,7 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Ev_dim=ncol(Xs_Ev),
                  X_Ev=Xs_Ev,
                  year_Ev=Ev_surv$year_index,
+                 cohort_Ev=Ev_surv$cohort_index,
                  plot_Ev=Ev_surv$plot,
                  ##FESU
                  y_Fs=Fs_surv$surv_t1, 
@@ -184,6 +188,7 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Fs_dim=ncol(Xs_Fs),
                  X_Fs=Xs_Fs,
                  year_Fs=Fs_surv$year_index,
+                 cohort_Fs=Fs_surv$cohort_index,
                  plot_Fs=Fs_surv$plot,
                  ##POAL
                  y_Pa=Pa_surv$surv_t1, 
@@ -191,6 +196,7 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Pa_dim=ncol(Xs_Pa),
                  X_Pa=Xs_Pa,
                  year_Pa=Pa_surv$year_index,
+                 cohort_Pa=Pa_surv$cohort_index,
                  plot_Pa=Pa_surv$plot,
                  ##POAU
                  y_Pu=Pu_surv$surv_t1, 
@@ -198,6 +204,7 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Pu_dim=ncol(Xs_Pu),
                  X_Pu=Xs_Pu,
                  year_Pu=Pu_surv$year_index,
+                 cohort_Pu=Pu_surv$cohort_index,
                  plot_Pu=Pu_surv$plot,
                  ##POAU
                  y_Ps=Ps_surv$surv_t1, 
@@ -205,24 +212,62 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Ps_dim=ncol(Xs_Ps),
                  X_Ps=Xs_Ps,
                  year_Ps=Ps_surv$year_index,
+                 cohort_Ps=Ps_surv$cohort_index,
                  plot_Ps=Ps_surv$plot)
+#needed for log likelihood
+stan_dat_surv$n_total = stan_dat_surv$n_Ap + stan_dat_surv$n_Er + stan_dat_surv$n_Ev + stan_dat_surv$n_Fs + stan_dat_surv$n_Pa + stan_dat_surv$n_Pu + stan_dat_surv$n_Ps
 
-survival_model <- stan_model("analysis/Stan/ltreb_age_survival.stan")
-surv_fit<-sampling(survival_model,data = stan_dat_surv,
-                       chains=3,
-                       control = list(adapt_delta=0.99,stepsize=0.1),
-                       iter=8000,thin=2,
-                       pars = c("beta_Ap","beta_Er",
-                                "beta_Ev","beta_Fs",
-                                "beta_Pa","beta_Pu",
-                                "beta_Ps","sigma_year","sigma_plot"), 
-                       save_warmup=F)
-#write_rds(surv_fit,"analysis/Stan/surv_fit.rds")
-surv_fit<-readRDS("analysis/Stan/surv_fit.rds")
+## MODEL COMPARISON with and without cohort effects
+##original model -- no cohort effects
+# survival_model0 <- stan_model("analysis/Stan/ltreb_age_survival_r0.stan")
+# surv_fit0<-sampling(survival_model0,data = stan_dat_surv,
+#                        chains=3,iter=8000,
+#                        pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
+#                                 "beta_Pa","beta_Pu","beta_Ps",
+#                                 "sigma_year","sigma_plot","log_lik"), 
+#                        save_warmup=F)
 
-## check a few trace plots
-bayesplot::mcmc_trace(surv_fit,pars = c("sigma_year","sigma_plot"))
-bayesplot::mcmc_trace(surv_fit,pars = c("beta_Ap[1]","beta_Er[1]"))
+##alternative model with random intercepts for cohort
+# survival_model1 <- stan_model("analysis/Stan/ltreb_age_survival_r1.stan")
+# surv_fit1<-sampling(survival_model1,data = stan_dat_surv,
+#                     chains=3,iter=8000,
+#                     pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
+#                              "beta_Pa","beta_Pu","beta_Ps",
+#                              "sigma_year","sigma_cohort","sigma_plot","log_lik"), 
+#                     save_warmup=F)
+##compare models
+# loo0<-loo(surv_fit0)
+# loo1<-loo(surv_fit1)
+# loo_compare(loo0,loo1)
+# stopifnot(nrow(loo0$pointwise) == nrow(loo1$pointwise))
+# pareto_k_table(loo0);pareto_k_table(loo1)
+# > loo_compare(loo0,loo1)
+# elpd_diff se_diff
+# model2   0.0       0.0  
+# model1 -28.5       8.2  
+
+##cohort model is supported - refit with the alphas for each cohort
+
+##now rerun the +cohort model with all parameters I need
+surv_fit<-sampling(survival_model1,data = stan_dat_surv,
+                    chains=3,iter=8000,
+                    pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
+                    "beta_Pa","beta_Pu","beta_Ps",
+                    "sigma_year","sigma_plot","sigma_cohort",
+                    "alpha_y","alpha_c"),save_warmup=F)
+
+#write_rds(surv_fit,"analysis/Stan/surv_fit_r1.rds")
+surv_fit<-readRDS("analysis/Stan/surv_fit_r1.rds")
+
+## look at Rhats
+rhats <- summary(surv_fit)$summary[, "Rhat"]
+hist(rhats) ##good!
+
+## check trace plots
+bayesplot::mcmc_trace(surv_fit,pars = c("sigma_year","sigma_cohort","sigma_plot"))
+bayesplot::mcmc_trace(surv_fit,regex_pars = c("beta_Ap"))
+bayesplot::mcmc_trace(surv_fit,regex_pars = c("beta_Er"))
+
 
 ## wrangle parameter indices to get age- and endo-specific survival
 quantile_probs<-c(0.05,0.25,0.5,0.75,0.95)
@@ -443,7 +488,7 @@ spp_list<-c("AGPE","ELRI","ELVI","FESU","POAL","POAU","POSY")
 species_colors<-rainbow(length(spp_list))
 
 ## nice figure
-jpeg("manuscript/figures/age_specific_survival.jpg", width = 3300, height = 1500, res = 300)
+jpeg("manuscript/figures/age_specific_survival_r1.jpg", width = 3300, height = 1500, res = 300)
 {par(mfrow=c(2,4),mar=c(4,4,2,1))
   plot(Ap_surv$age_lump,Ap_surv$surv_t1,type="n",xlab="Age group",ylab="Survival",
        xlim=c(-0.5,5.5),axes=F)
@@ -601,7 +646,13 @@ jpeg("manuscript/figures/age_specific_survival.jpg", width = 3300, height = 1500
 }
 dev.off()
 
-# fertility model --------------intercept = # fertility model ---------------------------------------------------------
+##visualize year and cohort effects
+surv_fit %>% 
+  gather_draws(sigma_plot,sigma_year,sigma_cohort)%>% 
+  ggplot()+
+  geom_histogram(aes(x=.value,fill=.variable))
+
+# fertility model ------------------------------------------------
 ## do zero-year-olds ever flower?
 ltreb_age_lump %>% 
   filter(age_lump==0) %>% 
@@ -612,12 +663,17 @@ ltreb_age_lump %>%
 ## So we will assume that 0-yo's cannot/do not flower for all species and endo, 
 ## and start age-specific fertility at age 1
 
-fert_data<-ltreb_age_lump %>% select(species,endo_01,id,plot,year_t,age,age_lump,flw_count_t) %>% 
+fert_data<-ltreb_age_lump %>% select(species,endo_01,id,plot,birth,year_t,age,age_lump,flw_count_t) %>% 
   filter(age_lump>0) %>% drop_na() %>% 
   mutate(species_index = as.numeric(species),
          year_index = year_t-(min(year_t)-1),
+         cohort_index = birth-(min(birth)-1),
          endo_index = endo_01+1,
          ind_index = as.numeric(factor(id)))
+
+##fewer years and cohorts in the fertility data than the survival data
+setdiff(unique(surv_data$year_t),unique(fert_data$year_t))##2009 dropped bc I am filtering out age 0
+setdiff(unique(surv_data$birth),unique(fert_data$birth))##2021 dropped for same reason
 
 ## take each species as a data subset -- this helps keep track of the parameters
 Ap_fert <- fert_data %>% filter(species=="AGPE") %>% droplevels()
@@ -643,6 +699,7 @@ Xf_Ps<-model.matrix(~as.factor(age_lump) * as.factor(endo_01),data=Ps_fert)
 
 stan_dat_fert <- list(n_spp=7,
                       n_years=max(fert_data$year_index),
+                      n_cohorts=max(fert_data$cohort_index),
                       n_plots=max(fert_data$plot),
                       ##AGPE
                       y_Ap=Ap_fert$flw_count_t, 
@@ -650,6 +707,7 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Ap_dim=ncol(Xf_Ap),
                       X_Ap=Xf_Ap,
                       year_Ap=Ap_fert$year_index,
+                      cohort_Ap=Ap_fert$cohort_index,
                       plot_Ap=Ap_fert$plot,
                       ##ELRI
                       y_Er=Er_fert$flw_count_t, 
@@ -657,6 +715,7 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Er_dim=ncol(Xf_Er),
                       X_Er=Xf_Er,
                       year_Er=Er_fert$year_index,
+                      cohort_Er=Er_fert$cohort_index,
                       plot_Er=Er_fert$plot,
                       ##ELVI
                       y_Ev=Ev_fert$flw_count_t, 
@@ -664,6 +723,7 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Ev_dim=ncol(Xf_Ev),
                       X_Ev=Xf_Ev,
                       year_Ev=Ev_fert$year_index,
+                      cohort_Ev=Ev_fert$cohort_index,
                       plot_Ev=Ev_fert$plot,
                       ##FESU
                       y_Fs=Fs_fert$flw_count_t, 
@@ -671,6 +731,7 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Fs_dim=ncol(Xf_Fs),
                       X_Fs=Xf_Fs,
                       year_Fs=Fs_fert$year_index,
+                      cohort_Fs=Fs_fert$cohort_index,
                       plot_Fs=Fs_fert$plot,
                       ##POAL
                       y_Pa=Pa_fert$flw_count_t, 
@@ -678,6 +739,7 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Pa_dim=ncol(Xf_Pa),
                       X_Pa=Xf_Pa,
                       year_Pa=Pa_fert$year_index,
+                      cohort_Pa=Pa_fert$cohort_index,
                       plot_Pa=Pa_fert$plot,
                       ##POAU
                       y_Pu=Pu_fert$flw_count_t, 
@@ -685,6 +747,7 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Pu_dim=ncol(Xf_Pu),
                       X_Pu=Xf_Pu,
                       year_Pu=Pu_fert$year_index,
+                      cohort_Pu=Pu_fert$cohort_index,
                       plot_Pu=Pu_fert$plot,
                       ##POAU
                       y_Ps=Ps_fert$flw_count_t, 
@@ -692,28 +755,60 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Ps_dim=ncol(Xf_Ps),
                       X_Ps=Xf_Ps,
                       year_Ps=Ps_fert$year_index,
+                      cohort_Ps=Ps_fert$cohort_index,
                       plot_Ps=Ps_fert$plot)
+#needed for log likelihood
+stan_dat_fert$n_total = stan_dat_fert$n_Ap + stan_dat_fert$n_Er + stan_dat_fert$n_Ev + stan_dat_fert$n_Fs + stan_dat_fert$n_Pa + stan_dat_fert$n_Pu + stan_dat_fert$n_Ps
 
-fertility_model <- stan_model("analysis/Stan/ltreb_age_fertility.stan")
-fert_fit<-sampling(fertility_model,data = stan_dat_fert,
-                   chains=3,
-                   control = list(adapt_delta=0.99,stepsize=0.1),
-                   iter=8000,thin=2,
-                   pars = c("beta_Ap","beta_Er",
-                            "beta_Ev","beta_Fs",
-                            "beta_Pa","beta_Pu",
-                            "beta_Ps","phi_spp",
-                            "sigma_year","sigma_plot",
-                            "sim_Ap","sim_Er","sim_Ev","sim_Fs","sim_Pa","sim_Pu","sim_Ps"), 
+##model comparison with and without cohort effects
+# fertility_model0 <- stan_model("analysis/Stan/ltreb_age_fertility_r0.stan")
+# fert_fit0<-sampling(fertility_model0,data = stan_dat_fert,
+#                    chains=3,iter=8000,
+#                    pars = c("sigma_year","sigma_plot","log_lik"), 
+#                    save_warmup=F)
+# 
+# fertility_model1 <- stan_model("analysis/Stan/ltreb_age_fertility_r1.stan")
+# fert_fit1<-sampling(fertility_model1,data = stan_dat_fert,
+#                     chains=3,iter=8000,
+#                     pars = c("sigma_year","sigma_plot","sigma_cohort","log_lik"), 
+#                     save_warmup=F)
+# 
+# bayesplot::mcmc_trace(fert_fit0,pars = c("sigma_year","sigma_plot"))
+# bayesplot::mcmc_trace(fert_fit1,pars = c("sigma_year","sigma_cohort","sigma_plot"))
+
+##compare models
+# loo0<-loo(fert_fit0)
+# loo1<-loo(fert_fit1)
+# loo_compare(loo0,loo1)
+# stopifnot(nrow(loo0$pointwise) == nrow(loo1$pointwise))
+# pareto_k_table(loo0);pareto_k_table(loo1)
+# > loo_compare(loo0,loo1)
+# elpd_diff se_diff
+# model2   0.0       0.0  
+# model1 -44.5      11.1 
+
+
+## refit fertility model with all the parameters I need plus PPC
+fertility_model1 <- stan_model("analysis/Stan/ltreb_age_fertility_r1.stan")
+fert_fit<-sampling(fertility_model1,data = stan_dat_fert,
+                   chains=3,iter=8000,
+                   pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
+                            "beta_Pa","beta_Pu","beta_Ps","phi_spp",
+                            "sigma_year","sigma_plot","sigma_cohort",
+                            "alpha_y","alpha_c",
+                            "sim_Ap","sim_Er","sim_Ev","sim_Fs",
+                            "sim_Pa","sim_Pu","sim_Ps"), 
                    save_warmup=F)
-#write_rds(fert_fit,"analysis/Stan/fert_fit.rds")
-fert_fit<-readRDS("analysis/Stan/fert_fit.rds")
+#write_rds(fert_fit,"analysis/Stan/fert_fit_r1.rds")
+fert_fit<-readRDS("analysis/Stan/fert_fit_r1.rds")
+
+## look at Rhats
+rhats <- summary(fert_fit)$summary[, "Rhat"]
+hist(rhats) ##good!
 
 ## check a few trace plots
-bayesplot::mcmc_trace(fert_fit,pars = c("sigma_year","sigma_plot"))
+bayesplot::mcmc_trace(fert_fit,pars = c("sigma_year","sigma_plot","sigma_cohort"))
 bayesplot::mcmc_trace(fert_fit,pars = c("beta_Ap[1]","beta_Er[1]"))
-A_fert_sim<-rstan::extract(fert_fit,"sim_Ap")
-ppc_dens_overlay(stan_dat_fert$y_Ap,A_fert_sim$sim_Ap)+xlim(0,50)
 
 ## could the negbin generate the zero-heavy data? YES
 y_Ap_sim <- rstan::extract(fert_fit,pars="sim_Ap")
@@ -938,7 +1033,7 @@ probpos_survival + probpos_fertility
 #ggsave("manuscript/figures/probpos_fertility.jpg")
 
 
-jpeg("manuscript/figures/age_specific_fertility.jpg", width = 3300, height = 1500, res = 300)
+jpeg("manuscript/figures/age_specific_fertility_r1.jpg", width = 3300, height = 1500, res = 300)
 {par(mfrow=c(2,4),mar=c(4,4,2,1))
   ylim_quantile<-0.95
   plot(Ap_fert$age_lump,Ap_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
