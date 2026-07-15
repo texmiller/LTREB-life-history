@@ -249,6 +249,7 @@ stan_dat_surv$n_total = stan_dat_surv$n_Ap + stan_dat_surv$n_Er + stan_dat_surv$
 ##cohort model is supported - refit with the alphas for each cohort
 
 ##now rerun the +cohort model with all parameters I need
+survival_model1 <- stan_model("analysis/Stan/ltreb_age_survival_r1.stan")
 surv_fit<-sampling(survival_model1,data = stan_dat_surv,
                     chains=3,iter=8000,
                     pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
@@ -413,36 +414,36 @@ relage_Ps <- 0:7/7; colnames(propfx_Ps_surv)<-relage_Ps
 posterior_long_Ap_surv <- as.data.frame(propfx_Ap_surv) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="AGPE")
+  mutate(relage=as.numeric(relage),species="AGPE",age=relage*5)
 posterior_long_Er_surv <- as.data.frame(propfx_Er_surv) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="ELRI")
+  mutate(relage=as.numeric(relage),species="ELRI",age=relage*3)
 posterior_long_Ev_surv <- as.data.frame(propfx_Ev_surv) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="ELVI")
+  mutate(relage=as.numeric(relage),species="ELVI",age=relage*3)
 posterior_long_Fs_surv <- as.data.frame(propfx_Fs_surv) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="FESU")
+  mutate(relage=as.numeric(relage),species="FESU",age=relage*5)
 posterior_long_Pa_surv <- as.data.frame(propfx_Pa_surv) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="POAL")
+  mutate(relage=as.numeric(relage),species="POAL",age=relage*2)
 posterior_long_Pu_surv <- as.data.frame(propfx_Pu_surv) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="POAU")
+  mutate(relage=as.numeric(relage),species="POAU",age=relage*4)
 posterior_long_Ps_surv <- as.data.frame(propfx_Ps_surv) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="POSY")
+  mutate(relage=as.numeric(relage),species="POSY",age=relage*7)
 
 # Compute density summary (median, credible intervals)
 posterior_summary_surv <- bind_rows(posterior_long_Ap_surv,posterior_long_Er_surv,posterior_long_Ev_surv,
                                posterior_long_Fs_surv,posterior_long_Pa_surv,posterior_long_Pu_surv,posterior_long_Ps_surv) %>%
-  group_by(relage,species) %>%
+  group_by(relage,age,species) %>%
   summarise(
     median = median(Value),
     lower95 = quantile(Value, 0.025),upper95 = quantile(Value, 0.975),
@@ -461,28 +462,6 @@ posterior_summary_surv %>%
 rm(posterior_long_Ap_surv,posterior_long_Er_surv,posterior_long_Ev_surv,
    posterior_long_Fs_surv,posterior_long_Pa_surv,posterior_long_Pu_surv,posterior_long_Ps_surv)
 rm(surv_fit)
-
-ggplot(posterior_summary_surv, aes(x = relage, y = median)) +
-  geom_ribbon(aes(x=relage,ymin = lower90, ymax = upper90), fill = "blue", alpha = 0.05) +  # Shaded credible interval
-  geom_ribbon(aes(x=relage,ymin = lower50, ymax = upper50), fill = "blue", alpha = 0.1) +  # Shaded credible interval
-  geom_line(aes(group=1),size = 1, color = "blue") +  # Median posterior line
-  theme_minimal() + geom_hline(yintercept=0) + 
-  labs(x = "Relative age",
-       y = "Survival effect size",
-       fill = "95% Credible Interval")+
-  facet_wrap(~species,scales="free_y")
-
-probpos_survival<-ggplot(posterior_summary_surv)+
-  geom_line(aes(x = relage, y = prob_pos, col=species),size=1)+
-  theme_minimal() + geom_hline(yintercept=0.5,linetype="dashed") + ylim(0,1) +
-  labs(x = "Relative age",
-       y = "Probability of positive symbiont effect")+
-  theme(
-         panel.grid.major = element_blank(),  # Remove major grid lines
-         panel.grid.minor = element_blank(),
-         axis.title = element_text(size = 16)   
-       )
-#ggsave("manuscript/figures/probpos_survival.jpg")
 
 spp_list<-c("AGPE","ELRI","ELVI","FESU","POAL","POAU","POSY")
 species_colors<-rainbow(length(spp_list))
@@ -960,36 +939,36 @@ colnames(propfx_Ps_fert)<-relage_Ps[-1]
 posterior_long_Ap_fert <- as.data.frame(propfx_Ap_fert) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="AGPE")
+  mutate(relage=as.numeric(relage),species="AGPE",age=relage*5)
 posterior_long_Er_fert <- as.data.frame(propfx_Er_fert) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="ELRI")
+  mutate(relage=as.numeric(relage),species="ELRI",age=relage*3)
 posterior_long_Ev_fert <- as.data.frame(propfx_Ev_fert) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="ELVI")
+  mutate(relage=as.numeric(relage),species="ELVI",age=relage*3)
 posterior_long_Fs_fert <- as.data.frame(propfx_Fs_fert) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="FESU")
+  mutate(relage=as.numeric(relage),species="FESU",age=relage*5)
 posterior_long_Pa_fert <- as.data.frame(propfx_Pa_fert) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="POAL")
+  mutate(relage=as.numeric(relage),species="POAL",age=relage*2)
 posterior_long_Pu_fert <- as.data.frame(propfx_Pu_fert) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="POAU")
+  mutate(relage=as.numeric(relage),species="POAU",age=relage*4)
 posterior_long_Ps_fert <- as.data.frame(propfx_Ps_fert) %>%
   mutate(draw = row_number()) %>%  # Add posterior sample index
   pivot_longer(cols = -draw, names_to = "relage", values_to = "Value") %>% 
-  mutate(relage=as.numeric(relage),species="POSY")
+  mutate(relage=as.numeric(relage),species="POSY",age=relage*7)
 
 # Compute density summary (median, credible intervals)
 posterior_summary_fert <- bind_rows(posterior_long_Ap_fert,posterior_long_Er_fert,posterior_long_Ev_fert,
                                posterior_long_Fs_fert,posterior_long_Pa_fert,posterior_long_Pu_fert,posterior_long_Ps_fert) %>%
-  group_by(relage,species) %>%
+  group_by(relage,age,species) %>%
   summarise(
     median = median(Value),
     lower95 = quantile(Value, 0.025),upper95 = quantile(Value, 0.975),
@@ -1197,18 +1176,27 @@ bind_rows(posterior_summary_fert %>% mutate(vital_rate="Fertility"),
           posterior_summary_surv %>% mutate(vital_rate="Survival")) %>% 
   mutate(vital_rate = factor(vital_rate, levels = c("Survival", "Fertility"),
                              labels = c("A) Survival", "B) Fertility"))) %>% 
+  mutate(Species = case_when(species=="AGPE" ~ "Agrostis perennans",
+                             species=="ELRI" ~ "Elymus villosus",
+                             species=="ELVI" ~ "Elymus virginicus",
+                             species=="FESU" ~ "Festuca subverticillata",
+                             species=="POAL" ~ "Poa alsodes",
+                             species=="POAU" ~ "Poa autumnalis",
+                             species=="POSY" ~ "Poa sylvestris")) %>% 
   ggplot()+
-  geom_line(aes(x = relage, y = prob_pos, col=species),size=1)+
+  geom_line(aes(x = age, y = prob_pos, col=Species),size=1)+
   theme_minimal() + geom_hline(yintercept=0.5,linetype="dashed") + ylim(0,1) +
-  labs(x = "Relative age",
+  scale_color_manual(values = species_colors)+
+  labs(x = "Age (years)",
        y = "Probability of positive symbiont effect")+
   theme(
+    legend.text = element_text(face = "italic"),
     panel.grid.major = element_blank(),  # Remove major grid lines
     panel.grid.minor = element_blank(),
     axis.title = element_text(size = 16),
     strip.text = element_text(size = 16, face = "bold")   
   )+ facet_grid(rows="vital_rate")->probpos_combo
-ggsave("manuscript/figures/probpos_combo.jpg",plot = probpos_combo)
+ggsave("manuscript/figures/probpos_combo_age.jpg",plot = probpos_combo)
 
 
 # recruitment model -------------------------------------------------------
