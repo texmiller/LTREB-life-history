@@ -1285,7 +1285,6 @@ recruit_dat<-list(N=nrow(recruits_infs),
 recruit_model <- stan_model("analysis/Stan/ltreb_recruitment.stan")
 recruit_fit<-sampling(recruit_model,data = recruit_dat,
                    chains=3,
-                   control = list(adapt_delta=0.99,stepsize=0.1),
                    iter=5000,thin=2,
                    pars = c("alpha1","beta1",
                             "alpha2","beta2",
@@ -1351,9 +1350,11 @@ ltreb %>%
   filter(flw_count_t>0) %>% 
   group_by(species,plot,endo_01,id) %>% 
   summarise(first_flower_age=min(age),
-            year = min(year_t)) %>% 
+            year = min(year_t),
+            cohort = unique(birth)) %>% 
   mutate(species_index = as.numeric(species),
-         year_index = year-(min(year)-1))->first_flower_ages 
+         year_index = year-(min(year)-1),
+         cohort_index = cohort-(min(cohort)-1))->first_flower_ages 
 table(first_flower_ages$first_flower_age)
 ##Following the same logic as in the fertility model, we do not believe that these plants can flower at age 0
 ##these are mostly AGPE 2020 and 2021 -- Mark years
@@ -1373,41 +1374,41 @@ ltreb %>%
   filter(flw_count_t>0) %>% 
   filter(age==0) %>% View
 
-##this model should be zero truncated!
-
 ## prep data
 firstflower_dat<-list(N=nrow(first_flower_ages),
                   y=first_flower_ages$first_flower_age,
                   n_spp=max(first_flower_ages$species_index),
                   n_years=max(first_flower_ages$year_index),
                   n_plots=max(first_flower_ages$plot),
+                  n_cohorts=max(first_flower_ages$cohort_index),
                   species=first_flower_ages$species_index,
                   endo=first_flower_ages$endo_01,
                   plot=first_flower_ages$plot,
+                  cohort=first_flower_ages$cohort_index,
                   year=first_flower_ages$year_index)
-firstflower_model <- stan_model("analysis/Stan/ltreb_firstflower.stan")
+
+firstflower_model <- stan_model("analysis/Stan/ltreb_firstflower_r1.stan")
 firstflower_fit<-sampling(firstflower_model,data = firstflower_dat,
-                      chains=3,
-                      #control = list(adapt_delta=0.99,stepsize=0.1),
-                      iter=9000,thin=2,
-                      cores = parallel::detectCores() - 1,
-                      pars = c("alpha","beta",
-                               "sigma_year","sigma_plot"), 
+                      chains=3,iter=8000,
+                      pars = c("alpha","beta","sigma_plot","sigma_cohort"), 
                       save_warmup=F)
-#write_rds(firstflower_fit,"analysis/Stan/firstflower_fit.rds")
-firstflower_fit<-read_rds("analysis/Stan/firstflower_fit.rds")
+
+#write_rds(firstflower_fit,"analysis/Stan/firstflower_fit_r1.rds")
+firstflower_fit<-read_rds("analysis/Stan/firstflower_fit_r1.rds")
 
 ##this function gives the expected value of the ZT poisson
 mean_trunc <- function(lambda){lambda / (1 - exp(-lambda))}
 
-bayesplot::mcmc_trace(firstflower_fit,pars = c("sigma_year","sigma_plot"))
-bayesplot::mcmc_trace(firstflower_fit,pars = c("alpha[4]","beta[4]"))
+bayesplot::mcmc_trace(firstflower_fit,pars = c("sigma_plot","sigma_cohort"))
+bayesplot::mcmc_trace(firstflower_fit,regex_pars = c("alpha"))
+bayesplot::mcmc_trace(firstflower_fit,regex_pars = c("beta"))
+bayesplot::mcmc_intervals(firstflower_fit,regex_pars = c("beta"))
 
 firstflower_params<-rstan::extract(firstflower_fit,c("alpha","beta"))
 firstflowerage_em<-apply(mean_trunc(exp(firstflower_params$alpha)),2,quantile,probs=quantile_probs)
 firstflowerage_ep<-apply(mean_trunc(exp(firstflower_params$alpha+firstflower_params$beta)),2,quantile,probs=quantile_probs)
 
-jpeg("manuscript/figures/firstflower.jpg", width = 1800, height = 1800, res = 300)
+jpeg("manuscript/figures/firstflower_r1.jpg", width = 1800, height = 1800, res = 300)
 {plot(1:7,firstflowerage_em[3,],type="n",ylim=c(0.5,max(first_flower_ages$first_flower_age)),xlim=c(0.8,7.2),
      ylab="Age at first reproduction (years)",xlab="Host species",axes=F,cex.lab=1.2)
 points(jitter(first_flower_ages$species_index[first_flower_ages$endo_01==0])-0.2,
@@ -2059,7 +2060,7 @@ lifehistorypost<-bind_rows(Ap_lifehistorypost,
                            Ps_lifehistorypost) %>% 
   mutate(species = factor(species))
 
-write.csv(lifehistorypost,"analysis/lifehistorypost.csv")
+write.csv(lifehistorypost,"analysis/lifehistorypost_r1.csv")
 
 
 # cost of reproduction analysis -------------------------------------------
