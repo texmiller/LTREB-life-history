@@ -1,4 +1,6 @@
-## Purpose: fit models for age- and endo-specific survival and fertility
+## Purpose: fit models for age- and endo-specific survival and fertility,
+## age of first flowering, and recrtuiment; combine parameters into MPMs;
+## derive posterior distributions of life history traits
 library(tidyverse)
 library(rstan)
 options(mc.cores = parallel::detectCores() - 1)
@@ -13,6 +15,7 @@ library(popbio)
 library(patchwork)
 library(Rage)
 library(popdemo)
+library(magrittr)
 
 ## functions
 invlogit<-function(x){exp(x)/(1+exp(x))}
@@ -251,11 +254,13 @@ stan_dat_surv$n_total = stan_dat_surv$n_Ap + stan_dat_surv$n_Er + stan_dat_surv$
 ##now rerun the +cohort model with all parameters I need
 survival_model1 <- stan_model("analysis/Stan/ltreb_age_survival_r1.stan")
 surv_fit<-sampling(survival_model1,data = stan_dat_surv,
-                    chains=3,iter=8000,
+                    chains=3,iter=5000,
                     pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
                     "beta_Pa","beta_Pu","beta_Ps",
                     "sigma_year","sigma_plot","sigma_cohort",
-                    "alpha_y","alpha_c"),save_warmup=F)
+                    "alpha_y","alpha_c",
+                    "sim_Ap","sim_Er","sim_Ev","sim_Fs",
+                    "sim_Pa","sim_Pu","sim_Ps"),save_warmup=F)
 
 #write_rds(surv_fit,"analysis/Stan/surv_fit_r1.rds")
 surv_fit<-readRDS("analysis/Stan/surv_fit_r1.rds")
@@ -269,6 +274,24 @@ bayesplot::mcmc_trace(surv_fit,pars = c("sigma_year","sigma_cohort","sigma_plot"
 bayesplot::mcmc_trace(surv_fit,regex_pars = c("beta_Ap"))
 bayesplot::mcmc_trace(surv_fit,regex_pars = c("beta_Er"))
 
+##posterior predictive check -- these look great
+y_Ap_sim <- rstan::extract(surv_fit,pars="sim_Ap")
+ppc_bars(stan_dat_surv$y_Ap, y_Ap_sim$sim_Ap)
+y_Er_sim <- rstan::extract(surv_fit,pars="sim_Er")
+ppc_bars(stan_dat_surv$y_Er, y_Er_sim$sim_Er)
+y_Ev_sim <- rstan::extract(surv_fit,pars="sim_Ev")
+ppc_bars(stan_dat_surv$y_Ev, y_Ev_sim$sim_Ev)
+y_Fs_sim <- rstan::extract(surv_fit,pars="sim_Fs")
+ppc_bars(stan_dat_surv$y_Fs, y_Fs_sim$sim_Fs)
+y_Pa_sim <- rstan::extract(surv_fit,pars="sim_Pa")
+ppc_bars(stan_dat_surv$y_Pa, y_Pa_sim$sim_Pa)
+y_Pu_sim <- rstan::extract(surv_fit,pars="sim_Pu")
+ppc_bars(stan_dat_surv$y_Pu, y_Pu_sim$sim_Pu)
+y_Ps_sim <- rstan::extract(surv_fit,pars="sim_Ps")
+ppc_bars(stan_dat_surv$y_Ps, y_Ps_sim$sim_Ps)
+
+##do cohort and year variances trade off?
+bayesplot::mcmc_pairs(surv_fit, pars = c("sigma_cohort", "sigma_year"))
 
 ## wrangle parameter indices to get age- and endo-specific survival
 quantile_probs<-c(0.05,0.25,0.5,0.75,0.95)
@@ -461,7 +484,6 @@ posterior_summary_surv %>%
 #dump big objects
 rm(posterior_long_Ap_surv,posterior_long_Er_surv,posterior_long_Ev_surv,
    posterior_long_Fs_surv,posterior_long_Pa_surv,posterior_long_Pu_surv,posterior_long_Ps_surv)
-rm(surv_fit)
 
 spp_list<-c("AGPE","ELRI","ELVI","FESU","POAL","POAU","POSY")
 species_colors<-rainbow(length(spp_list))
@@ -625,12 +647,6 @@ jpeg("manuscript/figures/age_specific_survival_r1.jpg", width = 3300, height = 1
 }
 dev.off()
 
-##visualize year and cohort effects
-surv_fit %>% 
-  gather_draws(sigma_plot,sigma_year,sigma_cohort)%>% 
-  ggplot()+
-  geom_histogram(aes(x=.value,fill=.variable))
-
 # fertility model ------------------------------------------------
 ## do zero-year-olds ever flower?
 ltreb_age_lump %>% 
@@ -649,6 +665,11 @@ fert_data<-ltreb_age_lump %>% select(species,endo_01,id,plot,birth,year_t,age,ag
          cohort_index = birth-(min(birth)-1),
          endo_index = endo_01+1,
          ind_index = as.numeric(factor(id)))
+##notice that there are the same nnumber of years and cohorts
+##but they are a different set years
+##this is because we drop 0-yo, so we lose year 2009 and cohort 2021
+min(fert_data$year_t);max(fert_data$year_t);length(unique(fert_data$year_t))
+min(fert_data$birth);max(fert_data$birth);length(unique(fert_data$birth))
 
 ##fewer years and cohorts in the fertility data than the survival data
 setdiff(unique(surv_data$year_t),unique(fert_data$year_t))##2009 dropped bc I am filtering out age 0
@@ -810,6 +831,9 @@ ppc_stat(stan_dat_fert$y_Pu, y_Pu_sim$sim_Pu, stat = "prop_zero", binwidth = 0.0
 
 y_Ps_sim <- rstan::extract(fert_fit,pars="sim_Ps")
 ppc_stat(stan_dat_fert$y_Ps, y_Ps_sim$sim_Ps, stat = "prop_zero", binwidth = 0.005)
+
+##do cohort and year variances trade off?
+bayesplot::mcmc_pairs(fert_fit, pars = c("sigma_cohort", "sigma_year"))
 
 ## wrangle parameter indices to get age- and endo-specific survival
 ## Agrostis perennans
@@ -1194,10 +1218,143 @@ bind_rows(posterior_summary_fert %>% mutate(vital_rate="Fertility"),
     panel.grid.major = element_blank(),  # Remove major grid lines
     panel.grid.minor = element_blank(),
     axis.title = element_text(size = 16),
-    strip.text = element_text(size = 16, face = "bold")   
-  )+ facet_grid(rows="vital_rate")->probpos_combo
+    strip.text = element_text(size = 16, face = "bold"))+
+  scale_x_continuous(breaks = 0:7) +
+  facet_grid(rows="vital_rate")->probpos_combo
 ggsave("manuscript/figures/probpos_combo_age.jpg",plot = probpos_combo)
 
+## year, plot, and cohort effects in survival and fertility
+bind_rows(
+surv_fit %>% 
+  gather_draws(sigma_year,sigma_cohort,sigma_plot) %>% 
+  mutate(vital_rate="survival"),
+fert_fit %>% 
+  gather_draws(sigma_year,sigma_cohort,sigma_plot) %>% 
+  mutate(vital_rate="fertility")) %>% 
+  ggplot(aes(x=.value,fill=.variable))+
+  geom_density(
+    aes(fill = .variable),
+    alpha = 0.25,
+    linewidth = 0.2)+
+  scale_fill_discrete(name=" ",labels = c("sigma_year" = "Year",
+                                          "sigma_cohort" = "Cohort",
+                                          "sigma_plot" = "Plot")) +
+  xlab("Random effect variance")+ylab("Posterior density")+
+  theme_classic()+
+  theme(legend.position = c(.8, .8))+
+  facet_grid("vital_rate")->sigmas_posteriors
+ggsave(plot=sigmas_posteriors,"manuscript/figures/sigmas_posteriors.jpg")
+
+##look at year and cohort effects
+bind_rows(
+surv_fit %>% 
+  spread_draws(alpha_y[i,j],alpha_c[i,j]) %>% 
+  rename(species=i,year=j) %>% 
+  group_by(species,year) %>% 
+  summarise(y_mean=mean(alpha_y),
+            c_mean=mean(alpha_c),
+            y_lower=quantile(alpha_y,probs=0.025),
+            y_upper=quantile(alpha_y,probs=0.975),
+            c_lower=quantile(alpha_c,probs=0.025),
+            c_upper=quantile(alpha_c,probs=0.975)) %>% 
+  mutate(vital_rate="Survival"),
+fert_fit %>% 
+  spread_draws(alpha_y[i,j],alpha_c[i,j]) %>% 
+  rename(species=i,year=j) %>% 
+  group_by(species,year) %>% 
+  summarise(y_mean=mean(alpha_y),
+            c_mean=mean(alpha_c),
+            y_lower=quantile(alpha_y,probs=0.025),
+            y_upper=quantile(alpha_y,probs=0.975),
+            c_lower=quantile(alpha_c,probs=0.025),
+            c_upper=quantile(alpha_c,probs=0.975)) %>% 
+  mutate(vital_rate="Fertility")
+) -> surv_fert_summary
+
+rm(surv_fit,fert_fit)
+
+surv_fert_summary %<>% 
+  mutate(Species = case_when(species==1 ~ "Agrostis perennans",
+                           species==2 ~ "Elymus villosus",
+                           species==3 ~ "Elymus virginicus",
+                           species==4 ~ "Festuca subverticillata",
+                           species==5 ~ "Poa alsodes",
+                           species==6 ~ "Poa autumnalis",
+                           species==7 ~ "Poa sylvestris"))
+
+ggplot(surv_fert_summary,
+  aes(x = y_mean,y = factor(year+(min(ltreb_age_lump$year_t)-1)),
+      xmin = y_lower,xmax = y_upper,
+      color = factor(Species))) +
+  geom_vline(xintercept = 0,linetype = "dashed",color = "grey60") +
+  geom_errorbarh(height = 0,linewidth = 0.7,position = position_dodge(width = 0.6)) +
+  geom_point(size = 2.2,position = position_dodge(width = 0.6)) +
+  labs(x = "Year effect",y = "Year",color = "Species") +
+  scale_color_manual(values = species_colors)+xlim(-5,5)+
+  theme_classic() + facet_wrap(~vital_rate)->year_effects_plot
+
+ggplot(surv_fert_summary,
+       aes(x = c_mean,y = factor(year+(min(ltreb_age_lump$year_t)-1)),xmin = c_lower,xmax = c_upper,
+           color = factor(Species))) +
+  geom_vline(xintercept = 0,linetype = "dashed",color = "grey60") +
+  geom_errorbarh(height = 0,linewidth = 0.7,position = position_dodge(width = 0.6)) +
+  geom_point(size = 2.2,position = position_dodge(width = 0.6)) +
+  labs(x = "Year effect",y = "Cohort",color = "Species") +
+  scale_color_manual(values = species_colors)+xlim(-5,5)+
+  theme_classic() + facet_wrap(~vital_rate)->cohort_effects_plot
+
+ggplot(surv_fert_summary %>% filter(vital_rate=="Survival"), 
+       aes(y = factor(year+(min(ltreb_age_lump$year_t)-1),levels = rev(2009:2021)))) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_errorbarh(aes(xmin = y_lower,xmax = y_upper,color = "Year"),
+    height = 0,linewidth = 0.7,position = position_nudge(y = 0.12)) +
+  geom_point(aes(x = y_mean, color = "Year"),
+    size = 2.2,position = position_nudge(y = 0.12)) +
+  geom_errorbarh(
+    aes(xmin = c_lower,xmax = c_upper,color = "Cohort"),
+    height = 0,linewidth = 0.7,position = position_nudge(y = -0.12)) +
+  geom_point(aes(x = c_mean, color = "Cohort"),size = 2.2,
+    position = position_nudge(y = -0.12)) +
+  facet_wrap(~ Species, scales = "free_y") +
+  scale_color_manual(name = NULL,
+    values = c("Year" = "tomato","Cohort" = "cornflowerblue")) +
+  labs(x = "Posterior effect",y = "Year") +
+  theme_classic() + ylab(" ")+
+  theme(legend.position = "top",
+    strip.text = element_text(face = "italic"),
+    panel.spacing = unit(1, "lines"))->survival_year_cohort_effects
+ggsave(plot=survival_year_cohort_effects,"manuscript/figures/survival_year_cohort_effects.jpg")
+
+##need this because cohort and year effects have different years
+fert_plot_dat <- surv_fert_summary %>%
+  filter(vital_rate == "Fertility") %>%
+  mutate(
+    calendar_year = factor(year + min(fert_data$year_t) - 1,
+                           levels = rev(2009:2021)),
+    cohort_year   = factor(year + min(fert_data$birth) - 1,
+                           levels = rev(2009:2021)))
+
+ggplot(fert_plot_dat) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_errorbarh(aes(xmin = y_lower, xmax = y_upper, y = calendar_year, color = "Year"),
+                 height = 0, linewidth = 0.7, position = position_nudge(y = 0.12)) +
+  geom_point(aes(x = y_mean, y = calendar_year, color = "Year"),
+             size = 2.2, position = position_nudge(y = 0.12)) +
+  geom_errorbarh(aes(xmin = c_lower, xmax = c_upper, y = cohort_year, color = "Cohort"),
+                 height = 0, linewidth = 0.7, position = position_nudge(y = -0.12)) +
+  geom_point(aes(x = c_mean, y = cohort_year, color = "Cohort"),
+             size = 2.2, position = position_nudge(y = -0.12)) +
+  facet_wrap(~Species, scales = "free_y") +
+  scale_y_discrete(drop = FALSE) +
+  scale_color_manual(name = NULL,
+                     values = c("Year" = "tomato",
+                                "Cohort" = "cornflowerblue")) +
+  labs(x = "Posterior effect", y = NULL) +
+  theme_classic() +
+  theme(legend.position = "top",
+        strip.text = element_text(face = "italic"),
+        panel.spacing = unit(1, "lines"))->fertility_year_cohort_effects
+ggsave(plot=fertility_year_cohort_effects,"manuscript/figures/fertility_year_cohort_effects.jpg")
 
 # recruitment model -------------------------------------------------------
 ## estimate the rate of recruitment per inflorescence (which is the unit of fertility)
@@ -1344,79 +1501,97 @@ legend("topright",legend=c("S-","S+",expression(Infs[t-1]),expression(Infs[t-2])
 dev.off()
 
 
-# age of first flowering model --------------------------------------------
-# create a df of reproductive ages for all individuals that ever flowered
-ltreb %>% 
-  filter(flw_count_t>0) %>% 
-  group_by(species,plot,endo_01,id) %>% 
-  summarise(first_flower_age=min(age),
-            year = min(year_t),
-            cohort = unique(birth)) %>% 
-  mutate(species_index = as.numeric(species),
-         year_index = year-(min(year)-1),
-         cohort_index = cohort-(min(cohort)-1))->first_flower_ages 
-table(first_flower_ages$first_flower_age)
-##Following the same logic as in the fertility model, we do not believe that these plants can flower at age 0
-##these are mostly AGPE 2020 and 2021 -- Mark years
-first_flower_ages %>% filter(first_flower_age>0) -> first_flower_ages
+# age of first flowering -- hazard model ----------------------------------
+## data prep: plant-year until flowering
+ltreb %>%
+  select(species,plot,endo_01,id,birth,year_t,age,flw_count_t) %>% 
+  filter(age > 0) %>%                                  #exclude age 0
+  group_by(id) %>%
+  filter(any(flw_count_t > 0)) %>%                      #keep only plants that ever flowered
+  mutate(first_flower_age = min(age[flw_count_t > 0])) %>%  #find each id's flowering age
+  filter(age <= first_flower_age) %>%                   #drop rows after flowering
+  mutate(flowered = as.integer(flw_count_t > 0)) %>%    
+  ungroup() %>% 
+  mutate(species_index = as.numeric(species), 
+         year_index = year_t-(min(year_t)-1),
+         cohort_index = birth-(min(birth)-1))-> firstflower_data
+## data check-- every individual should sum to one (flowered once in the data)
+firstflower_data %>% group_by(id) %>% summarise(n_flowered = sum(flowered)) %>% pull(n_flowered) %>% table()
+## aggregate to a single flowering age by individuals
+plant_level <- firstflower_data %>% filter(flowered==1)
 
-#who first flowered at 7??
-first_flower_ages %>% filter(first_flower_age==7)
-#spot check one of these -- checks out
-ltreb %>% filter(id=="104_C1") %>% View
+##note the year indices do not line up with original ltreb data
+table(firstflower_data$year_t);table(ltreb_age_lump$year_t)
 
-## I worry about all the age-zero flowering plants, especially in the non-AGPE species
-## like this POAU for example -- why did this make it through the filter?
-## answer: because in the original data it was given seedling==0 and we did not check those for flowering!
-ltreb %>% filter(id=="78 NA 172")
-## Also note that all the 0-yo flowering AGPE were observed only in 2019-2021, when Mark S. was collecting data
-ltreb %>% 
-  filter(flw_count_t>0) %>% 
-  filter(age==0) %>% View
+## prep data for model
+## max age by species
+max_age <- firstflower_data %>% 
+  group_by(species_index) %>% 
+  summarise(max_age = max(age)) %>% 
+  arrange(species_index) %>% 
+  pull(max_age)
 
-## prep data
-firstflower_dat<-list(N=nrow(first_flower_ages),
-                  y=first_flower_ages$first_flower_age,
-                  n_spp=max(first_flower_ages$species_index),
-                  n_years=max(first_flower_ages$year_index),
-                  n_plots=max(first_flower_ages$plot),
-                  n_cohorts=max(first_flower_ages$cohort_index),
-                  species=first_flower_ages$species_index,
-                  endo=first_flower_ages$endo_01,
-                  plot=first_flower_ages$plot,
-                  cohort=first_flower_ages$cohort_index,
-                  year=first_flower_ages$year_index)
+##stan data
+firstflower_dat <- list(
+  n_obs = nrow(firstflower_data),
+  flowered = firstflower_data$flowered,
+  age = firstflower_data$age,
+  n_ages = max(firstflower_data$age),
+  n_spp = max(firstflower_data$species_index),
+  species = firstflower_data$species_index,
+  endo = firstflower_data$endo_01,
+  n_plots = max(firstflower_data$plot),
+  plot = firstflower_data$plot,
+  n_cohorts = max(firstflower_data$cohort_index),
+  cohort = firstflower_data$cohort_index,
+  n_years = max(firstflower_data$year_index),
+  year = firstflower_data$year_index,
+  max_age = max_age,
+  n_ind = nrow(plant_level),
+  species_ind = plant_level$species_index,
+  endo_ind = plant_level$endo_01,
+  plot_ind = plant_level$plot,
+  year_ind = plant_level$year_index,
+  cohort_ind = plant_level$cohort_index)
 
-firstflower_model <- stan_model("analysis/Stan/ltreb_firstflower_r1.stan")
-firstflower_fit<-sampling(firstflower_model,data = firstflower_dat,
-                      chains=3,iter=8000,
-                      pars = c("alpha","beta","sigma_plot","sigma_cohort"), 
-                      save_warmup=F)
+##hazard version
+firstflower_hazard_model <- stan_model("analysis/Stan/ltreb_firstflower_hazard_r1.stan")
+firstflower_hazard_fit<-sampling(firstflower_hazard_model,data = firstflower_dat,
+                          chains=3,iter=3000,
+                          pars = c("intercept","age_eff",
+                                   "sigma_plot","sigma_cohort","sigma_year",
+                                   "mean_age","age_rep"), 
+                          save_warmup=F)
 
-#write_rds(firstflower_fit,"analysis/Stan/firstflower_fit_r1.rds")
-firstflower_fit<-read_rds("analysis/Stan/firstflower_fit_r1.rds")
+#write_rds(firstflower_hazard_fit,"analysis/Stan/firstflower_hazard_fit_r1.rds")
+firstflower_hazard_fit<-read_rds("analysis/Stan/firstflower_hazard_fit_r1.rds")
 
-##this function gives the expected value of the ZT poisson
-mean_trunc <- function(lambda){lambda / (1 - exp(-lambda))}
+##trace plots
+bayesplot::mcmc_trace(firstflower_hazard_fit,pars = c("sigma_plot","sigma_cohort","sigma_year"))
+bayesplot::mcmc_intervals(firstflower_hazard_fit,regex_pars = c("age_eff"))
+bayesplot::mcmc_trace(firstflower_hazard_fit,pars = c("intercept"))
 
-bayesplot::mcmc_trace(firstflower_fit,pars = c("sigma_plot","sigma_cohort"))
-bayesplot::mcmc_trace(firstflower_fit,regex_pars = c("alpha"))
-bayesplot::mcmc_trace(firstflower_fit,regex_pars = c("beta"))
-bayesplot::mcmc_intervals(firstflower_fit,regex_pars = c("beta"))
+##PPC
+firstflower_age_rep <- rstan::extract(firstflower_hazard_fit, "age_rep")$age_rep
+bayesplot::ppc_bars(y=plant_level$age,yrep=firstflower_age_rep)
+bayesplot::ppc_bars_grouped(y=plant_level$age,yrep=firstflower_age_rep,
+                            group=plant_level$species,facet_args=list(scales="free_y"))
 
-firstflower_params<-rstan::extract(firstflower_fit,c("alpha","beta"))
-firstflowerage_em<-apply(mean_trunc(exp(firstflower_params$alpha)),2,quantile,probs=quantile_probs)
-firstflowerage_ep<-apply(mean_trunc(exp(firstflower_params$alpha+firstflower_params$beta)),2,quantile,probs=quantile_probs)
 
+firstflower_mean_age<-rstan::extract(firstflower_hazard_fit,c("mean_age"))$mean_age
+firstflowerage_em<-apply(firstflower_mean_age[,,1],2,quantile,probs=quantile_probs)
+firstflowerage_ep<-apply(firstflower_mean_age[,,2],2,quantile,probs=quantile_probs)
+
+##nice figure for manuscript with data and expected values
 jpeg("manuscript/figures/firstflower_r1.jpg", width = 1800, height = 1800, res = 300)
-{plot(1:7,firstflowerage_em[3,],type="n",ylim=c(0.5,max(first_flower_ages$first_flower_age)),xlim=c(0.8,7.2),
+{plot(1:7,firstflowerage_em[3,],type="n",ylim=c(0.5,max(plant_level$age)),xlim=c(0.8,7.2),
      ylab="Age at first reproduction (years)",xlab="Host species",axes=F,cex.lab=1.2)
-points(jitter(first_flower_ages$species_index[first_flower_ages$endo_01==0])-0.2,
-       jitter(first_flower_ages$first_flower_age[first_flower_ages$endo_01==0]),
-       col=alpha("tomato",0.15))
-points(jitter(first_flower_ages$species_index[first_flower_ages$endo_01==1])+0.1,
-       jitter(first_flower_ages$first_flower_age[first_flower_ages$endo_01==1]),
-       col=alpha("cornflowerblue",0.15))
+points(jitter(plant_level$species_index[plant_level$endo_01==0])-0.2,
+       jitter(plant_level$age[plant_level$endo_01==0]),
+       col=alpha("tomato",0.2))
+points(jitter(plant_level$species_index[plant_level$endo_01==1])+0.1,
+       jitter(plant_level$age[plant_level$endo_01==1]),
+       col=alpha("cornflowerblue",0.2))
 arrows((1:7)-.2,firstflowerage_em[2,],
        (1:7)-.2,firstflowerage_em[4,],length=0,lwd=3,col="tomato")
 arrows((1:7)-.2,firstflowerage_em[1,],
@@ -1429,11 +1604,10 @@ arrows((1:7)+.1,firstflowerage_ep[1,],
 points((1:7)+.1,firstflowerage_ep[3,],pch=16,cex=2,col="cornflowerblue")
 box()
 axis(1,at=1:7,labels=spp_list)
-axis(2,at=pretty(first_flower_ages$first_flower_age))
+axis(2,at=pretty(plant_level$age))
 legend("topleft",legend=c("S-","S+"),
        pch=c(16,16),col=c("tomato","cornflowerblue"),cex=1.2)}
 dev.off()
-
 
 # vertical transmission ---------------------------------------------------
 ##values used below come from Afkhami & Rudgers 2008 Table 1
@@ -2314,3 +2488,113 @@ beta <- c(-2,0.5)
 x<-model.matrix(~trt-1)
 y<-rbinom(N,size=1,prob=invlogit(x%*%beta))
 
+# basement: age of first flowering model --------------------------------------------
+# create a df of reproductive ages for all individuals that ever flowered
+ltreb %>% 
+  filter(flw_count_t>0) %>% 
+  group_by(species,plot,endo_01,id) %>% 
+  summarise(first_flower_age=min(age),
+            year = min(year_t)) %>% 
+  mutate(species_index = as.numeric(species),
+         year_index = year-(min(year)-1))->first_flower_ages 
+table(first_flower_ages$first_flower_age)
+
+## I worry about all the age-zero flowering plants, especially in the non-AGPE species
+## like this POAU for example -- why did this make it through the filter?
+## answer: because in the original data it was given seedling==0 and we did not check those for flowering!
+ltreb %>% filter(id=="78 NA 172")
+## Also note that all the 0-yo flowering AGPE were observed only in 2019-2021, when Mark S. was collecting data
+ltreb %>% 
+  filter(flw_count_t>0) %>% 
+  filter(age==0) %>% View
+
+##Following the same logic as in the fertility model, we do not believe that these plants can flower at age 0
+##these are mostly AGPE 2020 and 2021 -- Mark years
+first_flower_ages %>% filter(first_flower_age>0) -> first_flower_ages
+
+#who first flowered at 7??
+first_flower_ages %>% filter(first_flower_age==7)
+#spot check one of these -- checks out
+ltreb %>% filter(id=="104_C1") %>% View
+
+## ZT Poisson version
+firstflower_dat<-list(N=nrow(first_flower_ages),
+                      y=first_flower_ages$first_flower_age,
+                      n_spp=max(first_flower_ages$species_index),
+                      n_years=max(first_flower_ages$year_index),
+                      n_plots=max(first_flower_ages$plot),
+                      n_cohorts=max(first_flower_ages$cohort_index),
+                      species=first_flower_ages$species_index,
+                      endo=first_flower_ages$endo_01,
+                      plot=first_flower_ages$plot,
+                      cohort=first_flower_ages$cohort_index,
+                      year=first_flower_ages$year_index)
+
+firstflower_model <- stan_model("analysis/Stan/ltreb_firstflower_r1_Poisson.stan")
+firstflower_fit<-sampling(firstflower_model,data = firstflower_dat,
+                          chains=3,iter=3000,
+                          pars = c("alpha","beta",
+                                   "sigma_plot","sigma_cohort","y_rep"), 
+                          save_warmup=F)
+
+#write_rds(firstflower_fit,"analysis/Stan/firstflower_fit_r1.rds")
+firstflower_fit<-read_rds("analysis/Stan/firstflower_fit_r1.rds")
+
+##trace plots
+bayesplot::mcmc_trace(firstflower_fit,pars = c("sigma_plot","sigma_cohort"))
+bayesplot::mcmc_trace(firstflower_fit,regex_pars = c("alpha"))
+bayesplot::mcmc_trace(firstflower_fit,regex_pars = c("beta"))
+
+##posterior predictive check
+firstflower_yrep<-rstan::extract(firstflower_fit,"y_rep")$y_rep
+bayesplot::ppc_bars(y=firstflower_dat$y,yrep=firstflower_yrep)
+bayesplot::ppc_bars_grouped(y=firstflower_dat$y,yrep=firstflower_yrep,
+                            group=firstflower_dat$species,facet_args=list(scales="free_y"))
+
+##posterior preidtive check -- faster in R and can use correct zero truncation
+set.seed(12291980)
+ZT_rnbinom <- function(mu, phi) {
+  y <- 0
+  while (y == 0L) {
+    y <- rnbinom(n = 1,mu = mu,size = phi)
+  }
+  return(y)
+}
+
+firstflower_fit %>% 
+  spread_draws(logmu[i],phi,ndraws=500) %>%
+  rowwise() %>%
+  mutate(y_rep = ZT_rnbinom(exp(logmu), phi)) %>%
+  ungroup() %>%
+  select(.draw, i, y_rep) %>%
+  pivot_wider(names_from = i,values_from = y_rep) %>%
+  arrange(.draw) %>%
+  select(-.draw) %>%
+  as.matrix()->firstflower_yrep
+
+
+jpeg("manuscript/figures/firstflower_r1.jpg", width = 1800, height = 1800, res = 300)
+{plot(1:7,firstflowerage_em[3,],type="n",ylim=c(0.5,max(firstflower_data$first_flower_age)),xlim=c(0.8,7.2),
+      ylab="Age at first reproduction (years)",xlab="Host species",axes=F,cex.lab=1.2)
+  points(jitter(first_flower_ages$species_index[first_flower_ages$endo_01==0])-0.2,
+         jitter(first_flower_ages$first_flower_age[first_flower_ages$endo_01==0]),
+         col=alpha("tomato",0.15))
+  points(jitter(first_flower_ages$species_index[first_flower_ages$endo_01==1])+0.1,
+         jitter(first_flower_ages$first_flower_age[first_flower_ages$endo_01==1]),
+         col=alpha("cornflowerblue",0.15))
+  arrows((1:7)-.2,firstflowerage_em[2,],
+         (1:7)-.2,firstflowerage_em[4,],length=0,lwd=3,col="tomato")
+  arrows((1:7)-.2,firstflowerage_em[1,],
+         (1:7)-.2,firstflowerage_em[5,],length=0,lwd=1,col="tomato")
+  points((1:7)-.2,firstflowerage_em[3,],pch=16,cex=2,col="tomato")
+  arrows((1:7)+.1,firstflowerage_ep[2,],
+         (1:7)+.1,firstflowerage_ep[4,],length=0,lwd=3,col="cornflowerblue")
+  arrows((1:7)+.1,firstflowerage_ep[1,],
+         (1:7)+.1,firstflowerage_ep[5,],length=0,lwd=1,col="cornflowerblue")
+  points((1:7)+.1,firstflowerage_ep[3,],pch=16,cex=2,col="cornflowerblue")
+  box()
+  axis(1,at=1:7,labels=spp_list)
+  axis(2,at=pretty(first_flower_ages$first_flower_age))
+  legend("topleft",legend=c("S-","S+"),
+         pch=c(16,16),col=c("tomato","cornflowerblue"),cex=1.2)}
+dev.off()
