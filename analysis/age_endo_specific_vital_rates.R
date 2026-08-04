@@ -1624,7 +1624,7 @@ n_post<-500
 set.seed(12345)
 survfert_i<-sample(1:dim(Ap_par$beta_Ap)[1],n_post,replace = F)
 recruit_i<-sample(1:dim(recruit_params$alpha1)[1],n_post,replace = F)
-firstrepro_i<-sample(1:dim(firstflower_params$alpha)[1],n_post,replace = F)
+firstrepro_i<-sample(1:dim(firstflower_mean_age)[1],n_post,replace = F)
 
 ## set up matrix dimensions for each species
 Ap_dim<-age_limits$lump_age[age_limits$species=="AGPE"]+2
@@ -1715,7 +1715,7 @@ for(i in 1:n_post){
   Ap_lifehistorypost$longevity_em[i]<-Ap_em$longevity
   Ap_lifehistorypost$shape_surv_em[i]<-Ap_em$shape_surv
   Ap_lifehistorypost$shape_rep_em[i]<-Ap_em$shape_rep
-  Ap_lifehistorypost$firstrepro_em[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],1]))
+  Ap_lifehistorypost$firstrepro_em[i]<-firstflower_mean_age[firstrepro_i[i],1,1]
   Ap_lifehistorypost$lambda_em[i]<-lambda(Ap_em_U+Ap_em_F)#Ap_em$lambda
   
   Ap_lifehistorypost$R0_ep[i]<-Ap_ep$Ro
@@ -1728,7 +1728,7 @@ for(i in 1:n_post){
   Ap_lifehistorypost$longevity_ep[i]<-Ap_ep$longevity
   Ap_lifehistorypost$shape_surv_ep[i]<-Ap_ep$shape_surv
   Ap_lifehistorypost$shape_rep_ep[i]<-Ap_ep$shape_rep
-  Ap_lifehistorypost$firstrepro_ep[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],1]+firstflower_params$beta[firstrepro_i[i],1]))
+  Ap_lifehistorypost$firstrepro_ep[i]<-firstflower_mean_age[firstrepro_i[i],1,2]
   Ap_lifehistorypost$lambda_ep[i]<-lambda(Ap_ep_U+Ap_ep_F)#Ap_ep$lambda
   
   ##check ergodicity and irreducibility
@@ -1789,7 +1789,7 @@ for(i in 1:n_post){
   Er_lifehistorypost$longevity_em[i]<-Er_em$longevity
   Er_lifehistorypost$shape_surv_em[i]<-Er_em$shape_surv
   Er_lifehistorypost$shape_rep_em[i]<-Er_em$shape_rep
-  Er_lifehistorypost$firstrepro_em[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],2]))
+  Er_lifehistorypost$firstrepro_em[i]<-firstflower_mean_age[firstrepro_i[i],2,1]
   #E- host fitness
   Er_lifehistorypost$lambda_em[i]<-lambda(Er_em_U+Er_em_F)#Er_em$lambda
   #E- symbiont fitness
@@ -1805,7 +1805,7 @@ for(i in 1:n_post){
   Er_lifehistorypost$longevity_ep[i]<-Er_ep$longevity
   Er_lifehistorypost$shape_surv_ep[i]<-Er_ep$shape_surv
   Er_lifehistorypost$shape_rep_ep[i]<-Er_ep$shape_rep
-  Er_lifehistorypost$firstrepro_ep[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],2]+firstflower_params$beta[firstrepro_i[i],2]))
+  Er_lifehistorypost$firstrepro_ep[i]<-firstflower_mean_age[firstrepro_i[i],2,2]
   #E+ host fitness
   Er_lifehistorypost$lambda_ep[i]<-lambda(Er_ep_U+Er_ep_F)#Er_ep$lambda
   #E+ symbiont fitness
@@ -1867,7 +1867,7 @@ for(i in 1:n_post){
   Ev_lifehistorypost$longevity_em[i]<-Ev_em$longevity
   Ev_lifehistorypost$shape_surv_em[i]<-Ev_em$shape_surv
   Ev_lifehistorypost$shape_rep_em[i]<-Ev_em$shape_rep
-  Ev_lifehistorypost$firstrepro_em[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],3]))
+  Ev_lifehistorypost$firstrepro_em[i]<-firstflower_mean_age[firstrepro_i[i],3,1]
   #host E- fitness
   Ev_lifehistorypost$lambda_em[i]<-lambda(Ev_em_U+Ev_em_F)#Ev_em$lambda
   #symbiont E- fitness
@@ -1883,7 +1883,7 @@ for(i in 1:n_post){
   Ev_lifehistorypost$longevity_ep[i]<-Ev_ep$longevity
   Ev_lifehistorypost$shape_surv_ep[i]<-Ev_ep$shape_surv
   Ev_lifehistorypost$shape_rep_ep[i]<-Ev_ep$shape_rep
-  Ev_lifehistorypost$firstrepro_ep[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],3]+firstflower_params$beta[firstrepro_i[i],3]))
+  Ev_lifehistorypost$firstrepro_ep[i]<-firstflower_mean_age[firstrepro_i[i],3,2]
   #host E+ fitness
   Ev_lifehistorypost$lambda_ep[i]<-lambda(Ev_ep_U+Ev_ep_F)#Ev_ep$lambda
   #symbiont E+ fitness
@@ -1953,7 +1953,7 @@ for(i in 1:n_post){
   Fs_lifehistorypost$longevity_em[i]<-Fs_em$longevity
   Fs_lifehistorypost$shape_surv_em[i]<-Fs_em$shape_surv
   Fs_lifehistorypost$shape_rep_em[i]<-Fs_em$shape_rep
-  Fs_lifehistorypost$firstrepro_em[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],4]))
+  Fs_lifehistorypost$firstrepro_em[i]<-firstflower_mean_age[firstrepro_i[i],4,1]
   Fs_lifehistorypost$lambda_em[i]<-lambda(Fs_em_U+Fs_em_F)#Fs_em$lambda
   Fs_lifehistorypost$lambda_em_vt[i]<-lambda(Fs_em_U+Fs_em_F_vt)
   
@@ -1967,7 +1967,7 @@ for(i in 1:n_post){
   Fs_lifehistorypost$longevity_ep[i]<-Fs_ep$longevity
   Fs_lifehistorypost$shape_surv_ep[i]<-Fs_ep$shape_surv
   Fs_lifehistorypost$shape_rep_ep[i]<-Fs_ep$shape_rep
-  Fs_lifehistorypost$firstrepro_ep[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],4]+firstflower_params$beta[firstrepro_i[i],4]))
+  Fs_lifehistorypost$firstrepro_ep[i]<-firstflower_mean_age[firstrepro_i[i],4,2]
   Fs_lifehistorypost$lambda_ep[i]<-lambda(Fs_ep_U+Fs_ep_F)#Fs_ep$lambda
   Fs_lifehistorypost$lambda_ep_vt[i]<-lambda(Fs_ep_U+Fs_ep_F_vt)
   
@@ -2023,7 +2023,7 @@ for(i in 1:n_post){
   Pa_lifehistorypost$longevity_em[i]<-Pa_em$longevity
   Pa_lifehistorypost$shape_surv_em[i]<-Pa_em$shape_surv
   Pa_lifehistorypost$shape_rep_em[i]<-Pa_em$shape_rep
-  Pa_lifehistorypost$firstrepro_em[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],5]))
+  Pa_lifehistorypost$firstrepro_em[i]<-firstflower_mean_age[firstrepro_i[i],5,1]
   Pa_lifehistorypost$lambda_em[i]<-lambda(Pa_em_U+Pa_em_F)#Pa_em$lambda
   Pa_lifehistorypost$lambda_em_vt[i]<-lambda(Pa_em_U+Pa_em_F_vt)
   
@@ -2037,7 +2037,7 @@ for(i in 1:n_post){
   Pa_lifehistorypost$longevity_ep[i]<-Pa_ep$longevity
   Pa_lifehistorypost$shape_surv_ep[i]<-Pa_ep$shape_surv
   Pa_lifehistorypost$shape_rep_ep[i]<-Pa_ep$shape_rep
-  Pa_lifehistorypost$firstrepro_ep[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],5]+firstflower_params$beta[firstrepro_i[i],5]))
+  Pa_lifehistorypost$firstrepro_ep[i]<-firstflower_mean_age[firstrepro_i[i],5,2]
   Pa_lifehistorypost$lambda_ep[i]<-lambda(Pa_ep_U+Pa_ep_F)#Pa_ep$lambda
   Pa_lifehistorypost$lambda_ep_vt[i]<-lambda(Pa_ep_U+Pa_ep_F_vt)
   
@@ -2101,7 +2101,7 @@ for(i in 1:n_post){
   Pu_lifehistorypost$longevity_em[i]<-Pu_em$longevity
   Pu_lifehistorypost$shape_surv_em[i]<-Pu_em$shape_surv
   Pu_lifehistorypost$shape_rep_em[i]<-Pu_em$shape_rep
-  Pu_lifehistorypost$firstrepro_em[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],6]))
+  Pu_lifehistorypost$firstrepro_em[i]<-firstflower_mean_age[firstrepro_i[i],6,1]
   Pu_lifehistorypost$lambda_em[i]<-lambda(Pu_em_U+Pu_em_F)#Pu_em$lambda
   Pu_lifehistorypost$lambda_em_vt[i]<-lambda(Pu_em_U+Pu_em_F_vt)
   
@@ -2115,7 +2115,7 @@ for(i in 1:n_post){
   Pu_lifehistorypost$longevity_ep[i]<-Pu_ep$longevity
   Pu_lifehistorypost$shape_surv_ep[i]<-Pu_ep$shape_surv
   Pu_lifehistorypost$shape_rep_ep[i]<-Pu_ep$shape_rep
-  Pu_lifehistorypost$firstrepro_ep[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],6]+firstflower_params$beta[firstrepro_i[i],6]))
+  Pu_lifehistorypost$firstrepro_ep[i]<-firstflower_mean_age[firstrepro_i[i],6,2]
   Pu_lifehistorypost$lambda_ep[i]<-lambda(Pu_ep_U+Pu_ep_F)#Pu_ep$lambda
   Pu_lifehistorypost$lambda_ep_vt[i]<-lambda(Pu_ep_U+Pu_ep_F_vt)
   
@@ -2191,7 +2191,7 @@ for(i in 1:n_post){
   Ps_lifehistorypost$longevity_em[i]<-Ps_em$longevity
   Ps_lifehistorypost$shape_surv_em[i]<-Ps_em$shape_surv
   Ps_lifehistorypost$shape_rep_em[i]<-Ps_em$shape_rep
-  Ps_lifehistorypost$firstrepro_em[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],7]))
+  Ps_lifehistorypost$firstrepro_em[i]<-firstflower_mean_age[firstrepro_i[i],7,1]
   Ps_lifehistorypost$lambda_em[i]<-lambda(Ps_em_U+Ps_em_F)#Ps_em$lambda
   Ps_lifehistorypost$lambda_em_vt[i]<-lambda(Ps_em_U+Ps_em_F_vt)
   
@@ -2205,7 +2205,7 @@ for(i in 1:n_post){
   Ps_lifehistorypost$longevity_ep[i]<-Ps_ep$longevity
   Ps_lifehistorypost$shape_surv_ep[i]<-Ps_ep$shape_surv
   Ps_lifehistorypost$shape_rep_ep[i]<-Ps_ep$shape_rep
-  Ps_lifehistorypost$firstrepro_ep[i]<- mean_trunc(exp(firstflower_params$alpha[firstrepro_i[i],7]+firstflower_params$beta[firstrepro_i[i],7]))
+  Ps_lifehistorypost$firstrepro_ep[i]<-firstflower_mean_age[firstrepro_i[i],7,2]
   Ps_lifehistorypost$lambda_ep[i]<-lambda(Ps_ep_U+Ps_ep_F)#Ps_ep$lambda
   Ps_lifehistorypost$lambda_ep_vt[i]<-lambda(Ps_ep_U+Ps_ep_F_vt)
 
