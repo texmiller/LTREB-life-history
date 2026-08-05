@@ -810,8 +810,10 @@ hist(rhats) ##good!
 bayesplot::mcmc_trace(fert_fit,pars = c("sigma_year","sigma_plot","sigma_cohort"))
 bayesplot::mcmc_trace(fert_fit,pars = c("beta_Ap[1]","beta_Er[1]"))
 
+##posterior predictive check
 ## could the negbin generate the zero-heavy data? YES
 y_Ap_sim <- rstan::extract(fert_fit,pars="sim_Ap")
+ppc_bars(stan_dat_fert$y_Ap, y_Ap_sim$sim_Ap)
 ppc_stat(stan_dat_fert$y_Ap, y_Ap_sim$sim_Ap, stat = "prop_zero", binwidth = 0.005)
 
 y_Er_sim <- rstan::extract(fert_fit,pars="sim_Er")
@@ -1194,6 +1196,7 @@ jpeg("manuscript/figures/age_specific_fertility_r1.jpg", width = 3300, height = 
 }
 dev.off()
 
+posterior_summary_fert[posterior_summary_fert$relage==1,c("species","prob_pos")]
 
 ##combine survival and fertility probpos data frames
 bind_rows(posterior_summary_fert %>% mutate(vital_rate="Fertility"),
