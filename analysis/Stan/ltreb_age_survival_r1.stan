@@ -79,6 +79,15 @@ parameters {
   real<lower=0> sigma_cohort;
   real<lower=0> sigma_plot;
 }
+transformed parameters{
+  vector[n_Ap] logitp_Ap = to_vector(alpha_y[1, year_Ap]) + to_vector(alpha_c[1,cohort_Ap]) + alpha_p[plot_Ap] + X_Ap * beta_Ap;
+  vector[n_Er] logitp_Er = to_vector(alpha_y[2, year_Er]) + to_vector(alpha_c[2,cohort_Er]) + alpha_p[plot_Er] + X_Er * beta_Er;
+  vector[n_Ev] logitp_Ev = to_vector(alpha_y[3, year_Ev]) + to_vector(alpha_c[3,cohort_Ev]) + alpha_p[plot_Ev] + X_Ev * beta_Ev;
+  vector[n_Fs] logitp_Fs = to_vector(alpha_y[4, year_Fs]) + to_vector(alpha_c[4,cohort_Fs]) + alpha_p[plot_Fs] + X_Fs * beta_Fs;
+  vector[n_Pa] logitp_Pa = to_vector(alpha_y[5, year_Pa]) + to_vector(alpha_c[5,cohort_Pa]) + alpha_p[plot_Pa] + X_Pa * beta_Pa;
+  vector[n_Pu] logitp_Pu = to_vector(alpha_y[6, year_Pu]) + to_vector(alpha_c[6,cohort_Pu]) + alpha_p[plot_Pu] + X_Pu * beta_Pu;
+  vector[n_Ps] logitp_Ps = to_vector(alpha_y[7, year_Ps]) + to_vector(alpha_c[7,cohort_Ps]) + alpha_p[plot_Ps] + X_Ps * beta_Ps;
+}
 model {
   beta_Ap ~ normal(0,1);
   beta_Er ~ normal(0,1);
@@ -102,34 +111,44 @@ model {
   y_Ps ~ bernoulli_logit_glm(X_Ps,to_vector(alpha_y[7,year_Ps])+to_vector(alpha_c[7,cohort_Ps])+alpha_p[plot_Ps],beta_Ps);
 }
 generated quantities {
-  vector[n_total] log_lik;
-  vector[n_Ap] eta_Ap = to_vector(alpha_y[1, year_Ap]) + to_vector(alpha_c[1,cohort_Ap]) + alpha_p[plot_Ap] + X_Ap * beta_Ap;
-  vector[n_Er] eta_Er = to_vector(alpha_y[2, year_Er]) + to_vector(alpha_c[2,cohort_Er]) + alpha_p[plot_Er] + X_Er * beta_Er;
-  vector[n_Ev] eta_Ev = to_vector(alpha_y[3, year_Ev]) + to_vector(alpha_c[3,cohort_Ev]) + alpha_p[plot_Ev] + X_Ev * beta_Ev;
-  vector[n_Fs] eta_Fs = to_vector(alpha_y[4, year_Fs]) + to_vector(alpha_c[4,cohort_Fs]) + alpha_p[plot_Fs] + X_Fs * beta_Fs;
-  vector[n_Pa] eta_Pa = to_vector(alpha_y[5, year_Pa]) + to_vector(alpha_c[5,cohort_Pa]) + alpha_p[plot_Pa] + X_Pa * beta_Pa;
-  vector[n_Pu] eta_Pu = to_vector(alpha_y[6, year_Pu]) + to_vector(alpha_c[6,cohort_Pu]) + alpha_p[plot_Pu] + X_Pu * beta_Pu;
-  vector[n_Ps] eta_Ps = to_vector(alpha_y[7, year_Ps]) + to_vector(alpha_c[7,cohort_Ps]) + alpha_p[plot_Ps] + X_Ps * beta_Ps;
+  //commented code is for LOOCV
+  // vector[n_total] log_lik;
   //calculate log likelihoods in a single vector
-  for (n in 1:n_Ap) {
-    log_lik[n] = bernoulli_logit_lpmf(y_Ap[n] | eta_Ap[n]);
-  }
-  for (n in 1:n_Er) {
-    log_lik[n_Ap + n] = bernoulli_logit_lpmf(y_Er[n] | eta_Er[n]);
-  }
-  for (n in 1:n_Ev) {
-    log_lik[n_Ap + n_Er + n] = bernoulli_logit_lpmf(y_Ev[n] | eta_Ev[n]);
-  }
-  for (n in 1:n_Fs) {
-    log_lik[n_Ap + n_Er + n_Ev + n] = bernoulli_logit_lpmf(y_Fs[n] | eta_Fs[n]);
-  }
-  for (n in 1:n_Pa) {
-    log_lik[n_Ap + n_Er + n_Ev + n_Fs + n] = bernoulli_logit_lpmf(y_Pa[n] | eta_Pa[n]);
-  }
-  for (n in 1:n_Pu) {
-    log_lik[n_Ap + n_Er + n_Ev + n_Fs + n_Pa + n] = bernoulli_logit_lpmf(y_Pu[n] | eta_Pu[n]);
-  }
-  for (n in 1:n_Ps) {
-    log_lik[n_Ap + n_Er + n_Ev + n_Fs + n_Pa + n_Pu + n] = bernoulli_logit_lpmf(y_Ps[n] | eta_Ps[n]);
-  }
+  // for (n in 1:n_Ap) {
+  //   log_lik[n] = bernoulli_logit_lpmf(y_Ap[n] | eta_Ap[n]);
+  // }
+  // for (n in 1:n_Er) {
+  //   log_lik[n_Ap + n] = bernoulli_logit_lpmf(y_Er[n] | eta_Er[n]);
+  // }
+  // for (n in 1:n_Ev) {
+  //   log_lik[n_Ap + n_Er + n] = bernoulli_logit_lpmf(y_Ev[n] | eta_Ev[n]);
+  // }
+  // for (n in 1:n_Fs) {
+  //   log_lik[n_Ap + n_Er + n_Ev + n] = bernoulli_logit_lpmf(y_Fs[n] | eta_Fs[n]);
+  // }
+  // for (n in 1:n_Pa) {
+  //   log_lik[n_Ap + n_Er + n_Ev + n_Fs + n] = bernoulli_logit_lpmf(y_Pa[n] | eta_Pa[n]);
+  // }
+  // for (n in 1:n_Pu) {
+  //   log_lik[n_Ap + n_Er + n_Ev + n_Fs + n_Pa + n] = bernoulli_logit_lpmf(y_Pu[n] | eta_Pu[n]);
+  // }
+  // for (n in 1:n_Ps) {
+  //   log_lik[n_Ap + n_Er + n_Ev + n_Fs + n_Pa + n_Pu + n] = bernoulli_logit_lpmf(y_Ps[n] | eta_Ps[n]);
+  // }
+  
+  //posterior predictive check
+  array[n_Ap] int sim_Ap;
+  array[n_Er] int sim_Er;
+  array[n_Ev] int sim_Ev;
+  array[n_Fs] int sim_Fs;
+  array[n_Pa] int sim_Pa;
+  array[n_Pu] int sim_Pu;
+  array[n_Ps] int sim_Ps;
+  sim_Ap = bernoulli_logit_rng(logitp_Ap);
+  sim_Er = bernoulli_logit_rng(logitp_Er);
+  sim_Ev = bernoulli_logit_rng(logitp_Ev);
+  sim_Fs = bernoulli_logit_rng(logitp_Fs);
+  sim_Pa = bernoulli_logit_rng(logitp_Pa);
+  sim_Pu = bernoulli_logit_rng(logitp_Pu);
+  sim_Ps = bernoulli_logit_rng(logitp_Ps);
 }

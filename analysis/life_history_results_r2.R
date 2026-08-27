@@ -6,9 +6,10 @@ library(ggridges)
 library(patchwork)
 library(ggforce)
 ##read in life history outputs
-lifehistorypost<-read.csv("analysis/lifehistorypost_r1.csv")
+lifehistorypost<-read.csv("analysis/lifehistorypost_r2.csv")
 ## add posterior draw -- we used 500 samples for each species
-lifehistorypost$draw<-rep(1:500,times=7)
+n_post<-1000
+lifehistorypost$draw<-rep(1:n_post,times=7)
 
 ## check that matrices were ergodic and irreducible
 table(lifehistorypost$isergodic)
@@ -148,30 +149,12 @@ ggplot() +
   ) +
   scale_color_brewer(palette = "Dark2") +
   guides(color = "none") +
-  labs(title = "A)", x = "PC1 (81.6%)", y = "PC2 (7.4%)") +
+  labs(title = "A)", x = "PC1 (80.1%)", y = "PC2 (7.8%)") +
   coord_fixed(ratio = 1, xlim = pca_xlim, ylim = pca_ylim, clip = "off") +
   theme_classic() +
   theme(plot.margin = margin(5.5, 5.5, 5.5, 5.5)) -> PCA_vectors
 
 ##plot of S+ and S- by species (panel B)
-ggplot() +
-  geom_point(data = scores_df,aes(x = PC1, y = PC2, color = Endo),size = 3) +
-  geom_segment(data = arrows_df,aes(x = `PC1_S-`,y = `PC2_S-`,xend = `PC1_S+`,yend = `PC2_S+`),
-    linewidth = 0.75,color = "black") +
-  geom_text(data = arrows_df,aes(x = ifelse(Species1 %in% c("P.au.", "P.s."),
-        `PC1_S-` - 0.25,`PC1_S-` + 0.25),
-      y = `PC2_S-`,label = Species1,hjust = ifelse(Species1 %in% c("P.au.", "P.s."),1,0)),
-    size = 4,color = "black",fontface = "italic") +
-  scale_color_manual(values = c("S-" = "tomato","S+" = "cornflowerblue")) +
-  guides(color = guide_legend(title = NULL)) +
-  labs(title = "B)",x = "PC1 (81.6%)",y = "PC2 (7.4%)") +
-  coord_fixed(ratio = 1,xlim = pca_xlim,ylim = pca_ylim,clip = "off") +
-  theme_classic() +
-  theme(legend.position = c(0.8, 0.9),
-        legend.background = element_rect(fill = "white",color = "black"),
-    legend.text = element_text(size = 8),
-    plot.margin = margin(5.5, 5.5, 5.5, 5.5))->PCA_points
-
 label_adj <- tribble(
   ~Species1, ~nudge_x, ~nudge_y, ~hjust,
   "P.au.",   -0.25,     0.15,     1,
@@ -196,7 +179,7 @@ ggplot() +
             size = 4, color = "black", fontface = "italic") +
   scale_color_manual(values = c("S-" = "tomato", "S+" = "cornflowerblue")) +
   guides(color = guide_legend(title = NULL)) +
-  labs(title = "B)", x = "PC1 (81.6%)", y = "PC2 (7.4%)") +
+  labs(title = "B)", x = "PC1 (80.1%)", y = "PC2 (7.8%)") +
   coord_fixed(ratio = 1, xlim = pca_xlim, ylim = pca_ylim, clip = "off") +
   theme_classic() +
   theme(legend.position = "right",
@@ -205,7 +188,7 @@ ggplot() +
 
 ## Figure of posterior shifts
 lims1 <- quantile(posterior_shift_df$dPC1, probs = c(0.01, 0.99))
-posterior_shift_df$Species2<-rep(arrows_df$Species2,500)
+posterior_shift_df$Species2<-rep(arrows_df$Species2,n_post)
 posterior_shift_df$Species2 <-
   factor(posterior_shift_df$Species2,
          levels = sort(unique(posterior_shift_df$Species2)))
@@ -256,7 +239,7 @@ PCA_combo <-
   patchwork::wrap_elements(full = top_row,clip = FALSE) /
   patchwork::wrap_elements(full = bottom_row,clip = FALSE) +
   plot_layout(heights = c(-1, 1))
-ggsave("manuscript/figures/pca_shift_r1.jpg",
+ggsave("manuscript/figures/pca_shift_r2.jpg",
        plot = PCA_combo,
        width = 11,      # width in inches
        height = 7,      # height in inches
@@ -291,24 +274,7 @@ lifehistorypost$shaperep_diff<-lifehistorypost$shape_rep_ep-lifehistorypost$shap
 lifehistorypost$lambda_diff<-lifehistorypost$lambda_ep-lifehistorypost$lambda_em
 lifehistorypost$lambda_vt_diff<-lifehistorypost$lambda_ep_vt-lifehistorypost$lambda_em_vt
 
-## effects on net fitness (lambda)
-lifehistorypost %>% 
-  group_by(species) %>% 
-  summarise(mean(lambda_ep),
-            mean(lambda_ep_vt),
-            mean(lambda_em),
-            mean(lambda_em_vt)) %>% View
-which(is.na(lifehistorypost$lambda_em_vt))
-
 ##lambda
-ggplot(lifehistorypost,aes(lambda_diff,fill=species,col=species))+
-  geom_density(alpha=0.1)+geom_vline(xintercept=0)+
-  facet_wrap(~species,scales="free")
-
-ggplot(lifehistorypost,aes(lambda_vt_diff,fill=species,col=species))+
-  geom_density(alpha=0.1)+geom_vline(xintercept=0)+
-  facet_wrap(~species,scales="free")
-
 # 1) Long format + relabel
 lifehistory_long <- lifehistorypost %>%
   pivot_longer(
@@ -362,7 +328,7 @@ host_symbiont_lambdadiff<-ggplot(lifehistory_long,
     strip.background = element_blank(),
     plot.margin = margin(12, 12, 12, 24)
   )
-ggsave("manuscript/figures/host_symbiont_lambdadiff_r1.jpg",
+ggsave("manuscript/figures/host_symbiont_lambdadiff_r2.jpg",
        plot = host_symbiont_lambdadiff,
        width = 8,      # width in inches
        height = 6,      # height in inches
@@ -438,7 +404,7 @@ lambdadiffplot<-ggplot(lifehistorypost, aes(x = lambda_diff, y = species, fill =
     panel.grid = element_blank()
   )+xlim(-0.5, 0.8)
 
-ggsave("manuscript/figures/lambdadiffplot_r1.jpg",
+ggsave("manuscript/figures/lambdadiffplot_r2.jpg",
        plot = lambdadiffplot,
        width = 6,      # width in inches
        height = 8,      # height in inches
@@ -466,7 +432,7 @@ ggplot(pca.dat,aes(x=ShapeSurv,fill=Endo))+
   xlab("Shape of survival")+ylab("Posterior probability density")+
   theme(legend.position = c(0.4, 0.1),legend.justification = c("center", "bottom"))+
   scale_fill_manual(values = c("S-" = "tomato", "S+" = "cornflowerblue"))
-ggsave(filename="manuscript/figures/ShapeSurv_r1.jpg",
+ggsave(filename="manuscript/figures/ShapeSurv_r2.jpg",
         width = 6,height = 6,dpi = 300,units = "in")
 
 ##shape reproduction
@@ -478,7 +444,7 @@ ggplot(pca.dat,aes(x=ShapeRep,fill=Endo))+
   xlab("Shape of reproduction")+ylab("Posterior probability density")+
   theme(legend.position = c(0.4, 0.1),legend.justification = c("center", "bottom"))+
   scale_fill_manual(values = c("S-" = "tomato", "S+" = "cornflowerblue"))
-ggsave(filename="manuscript/figures/ShapeRep_r1.jpg",
+ggsave(filename="manuscript/figures/ShapeRep_r2.jpg",
        width = 6,height = 6,dpi = 300,units = "in")
 ##R0
 ggplot(pca.dat,aes(x=R0,fill=Endo))+
@@ -489,7 +455,7 @@ ggplot(pca.dat,aes(x=R0,fill=Endo))+
   xlab("R0")+ylab("Posterior probability density")+
   theme(legend.position = c(0.4, 0.1),legend.justification = c("center", "bottom"))+
   scale_fill_manual(values = c("S-" = "tomato", "S+" = "cornflowerblue"))
-ggsave(filename="manuscript/figures/R0_r1.jpg",
+ggsave(filename="manuscript/figures/R0_r2.jpg",
        width = 6,height = 6,dpi = 300,units = "in")
 
 ##life expectancy
@@ -501,7 +467,7 @@ ggplot(pca.dat,aes(x=LifeExpect,fill=Endo))+
   xlab("Mean life expectancy (years)")+ylab("Posterior probability density")+
   theme(legend.position = c(0.4, 0.1),legend.justification = c("center", "bottom"))+
   scale_fill_manual(values = c("S-" = "tomato", "S+" = "cornflowerblue"))
-ggsave(filename="manuscript/figures/LifeExpect_r1.jpg",
+ggsave(filename="manuscript/figures/LifeExpect_r2.jpg",
        width = 6,height = 6,dpi = 300,units = "in")
 
 ##max long
@@ -513,7 +479,7 @@ ggplot(pca.dat,aes(x=Longevity,fill=Endo))+
   xlab("Maximum longevity (years)")+ylab("Posterior probability density")+
   theme(legend.position = c(0.4, 0.1),legend.justification = c("center", "bottom"))+
   scale_fill_manual(values = c("S-" = "tomato", "S+" = "cornflowerblue"))
-ggsave(filename="manuscript/figures/Longevity_r1.jpg",
+ggsave(filename="manuscript/figures/Longevity_r2.jpg",
        width = 6,height = 6,dpi = 300,units = "in")
 
 ##generation time
@@ -525,7 +491,7 @@ ggplot(pca.dat,aes(x=GenTime,fill=Endo))+
   xlab("Generation time (years)")+ylab("Posterior probability density")+
   theme(legend.position = c(0.4, 0.1),legend.justification = c("center", "bottom"))+
   scale_fill_manual(values = c("S-" = "tomato", "S+" = "cornflowerblue"))
-ggsave(filename="manuscript/figures/GenTime_r1.jpg",
+ggsave(filename="manuscript/figures/GenTime_r2.jpg",
        width = 6,height = 6,dpi = 300,units = "in")
 
 ##Entropy
@@ -537,7 +503,7 @@ ggplot(pca.dat,aes(x=EntropyD,fill=Endo))+
   xlab("Demetrius' entropy")+ylab("Posterior probability density")+
   theme(legend.position = c(0.4, 0.1),legend.justification = c("center", "bottom"))+
   scale_fill_manual(values = c("S-" = "tomato", "S+" = "cornflowerblue"))
-ggsave(filename="manuscript/figures/EntropyD_r1.jpg",
+ggsave(filename="manuscript/figures/EntropyD_r2.jpg",
        width = 6,height = 6,dpi = 300,units = "in")
 
 ## data frame for life history effects
@@ -577,9 +543,37 @@ life_history_effects %>%
     POAU = "Poa autumnalis",
     POSY = "Poa sylvestris"))-> LHtraits_heatmap
 
-ggsave("manuscript/figures/LHtraits_heatmap_r1.jpg",
+ggsave("manuscript/figures/LHtraits_heatmap_r2.jpg",
        plot = LHtraits_heatmap,
        width = 10,      # width in inches
        height = 8,      # height in inches
        dpi = 300,       # resolution
        units = "in")
+
+## what is the mean delay in flowering age?
+lifehistorypost %>% 
+  group_by(species) %>% 
+  summarise(mean_change = mean(firstrepro_diff)) %>% 
+  summarise(sp_mean_change = mean(mean_change))
+
+## what is that as a percentage increase in age?
+lifehistorypost %>% 
+  group_by(species) %>% 
+  summarise(firstrepro_em = mean(firstrepro_em),
+            firstrepro_ep = mean(firstrepro_ep),
+            percent_change = (firstrepro_ep - firstrepro_em)/firstrepro_em) %>% 
+  summarise(mean(percent_change))
+
+## what is the mean extension of generation time?
+lifehistorypost %>% 
+  group_by(species) %>% 
+  summarise(mean_change = mean(G_diff)) %>% 
+  summarise(sp_mean_change = mean(mean_change))
+
+## what is that as a percentage increase in G?
+lifehistorypost %>% 
+  group_by(species) %>% 
+  summarise(G_em = mean(G_em),
+            G_ep = mean(G_ep),
+            percent_change = (G_ep - G_em)/G_em) %>% 
+  summarise(mean(percent_change))

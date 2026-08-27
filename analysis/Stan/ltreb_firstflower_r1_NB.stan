@@ -45,17 +45,3 @@ model {
   }
 
 }
-
-// generated quantities {
-//   int<lower=1> y_rep[N];
-//   for (i in 1:N) {
-//     real mu_i;
-//     mu_i = exp(alpha[species[i]]+beta[species[i]]*endo[i]
-//       +z_p[plot[i]]*sigma_plot+z_c[species[i],cohort[i]]*sigma_cohort);
-//     // Poisson draws, conditional on y>=1
-//     y_rep[i] = 0;
-//     while (y_rep[i] == 0) {
-//       y_rep[i] = neg_binomial_2_rng(mu_i,phi);
-//     }
-//   }
-// }

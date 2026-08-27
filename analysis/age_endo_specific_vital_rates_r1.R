@@ -1,6 +1,9 @@
 ## Purpose: fit models for age- and endo-specific survival and fertility,
 ## age of first flowering, and recrtuiment; combine parameters into MPMs;
 ## derive posterior distributions of life history traits
+## r1 UPDATE: revision for Nature Communications
+## biggest change is hazard model for flowering age
+
 library(tidyverse)
 library(rstan)
 options(mc.cores = parallel::detectCores() - 1)

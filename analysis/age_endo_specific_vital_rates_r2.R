@@ -1,6 +1,9 @@
 ## Purpose: fit models for age- and endo-specific survival and fertility,
 ## age of first flowering, and recrtuiment; combine parameters into MPMs;
 ## derive posterior distributions of life history traits
+## r2 UPDATE: no cohort effects, back to year and plot only
+## biggest change from r0 is hazard model for flowering age
+
 library(tidyverse)
 library(rstan)
 options(mc.cores = parallel::detectCores() - 1)
@@ -159,7 +162,6 @@ Xs_Ps<-model.matrix(~as.factor(age_lump) * as.factor(endo_01),data=Ps_surv)
 
 stan_dat_surv <- list(n_spp=7,
                  n_years=max(surv_data$year_index),
-                 n_cohorts=max(surv_data$cohort_index),
                  n_plots=max(surv_data$plot),
                  ##AGPE
                  y_Ap=Ap_surv$surv_t1, 
@@ -167,7 +169,6 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Ap_dim=ncol(Xs_Ap),
                  X_Ap=Xs_Ap,
                  year_Ap=Ap_surv$year_index,
-                 cohort_Ap=Ap_surv$cohort_index,
                  plot_Ap=Ap_surv$plot,
                  ##ELRI
                  y_Er=Er_surv$surv_t1, 
@@ -175,7 +176,6 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Er_dim=ncol(Xs_Er),
                  X_Er=Xs_Er,
                  year_Er=Er_surv$year_index,
-                 cohort_Er=Er_surv$cohort_index,
                  plot_Er=Er_surv$plot,
                  ##ELVI
                  y_Ev=Ev_surv$surv_t1, 
@@ -183,7 +183,6 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Ev_dim=ncol(Xs_Ev),
                  X_Ev=Xs_Ev,
                  year_Ev=Ev_surv$year_index,
-                 cohort_Ev=Ev_surv$cohort_index,
                  plot_Ev=Ev_surv$plot,
                  ##FESU
                  y_Fs=Fs_surv$surv_t1, 
@@ -191,7 +190,6 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Fs_dim=ncol(Xs_Fs),
                  X_Fs=Xs_Fs,
                  year_Fs=Fs_surv$year_index,
-                 cohort_Fs=Fs_surv$cohort_index,
                  plot_Fs=Fs_surv$plot,
                  ##POAL
                  y_Pa=Pa_surv$surv_t1, 
@@ -199,7 +197,6 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Pa_dim=ncol(Xs_Pa),
                  X_Pa=Xs_Pa,
                  year_Pa=Pa_surv$year_index,
-                 cohort_Pa=Pa_surv$cohort_index,
                  plot_Pa=Pa_surv$plot,
                  ##POAU
                  y_Pu=Pu_surv$surv_t1, 
@@ -207,70 +204,39 @@ stan_dat_surv <- list(n_spp=7,
                  beta_Pu_dim=ncol(Xs_Pu),
                  X_Pu=Xs_Pu,
                  year_Pu=Pu_surv$year_index,
-                 cohort_Pu=Pu_surv$cohort_index,
                  plot_Pu=Pu_surv$plot,
-                 ##POAU
+                 ##POSY
                  y_Ps=Ps_surv$surv_t1, 
                  n_Ps=length(Ps_surv$surv_t1),
                  beta_Ps_dim=ncol(Xs_Ps),
                  X_Ps=Xs_Ps,
                  year_Ps=Ps_surv$year_index,
-                 cohort_Ps=Ps_surv$cohort_index,
                  plot_Ps=Ps_surv$plot)
-#needed for log likelihood
-stan_dat_surv$n_total = stan_dat_surv$n_Ap + stan_dat_surv$n_Er + stan_dat_surv$n_Ev + stan_dat_surv$n_Fs + stan_dat_surv$n_Pa + stan_dat_surv$n_Pu + stan_dat_surv$n_Ps
 
-## MODEL COMPARISON with and without cohort effects
-##original model -- no cohort effects
-# survival_model0 <- stan_model("analysis/Stan/ltreb_age_survival_r0.stan")
-# surv_fit0<-sampling(survival_model0,data = stan_dat_surv,
-#                        chains=3,iter=8000,
-#                        pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
-#                                 "beta_Pa","beta_Pu","beta_Ps",
-#                                 "sigma_year","sigma_plot","log_lik"), 
-#                        save_warmup=F)
-
-##alternative model with random intercepts for cohort
-# survival_model1 <- stan_model("analysis/Stan/ltreb_age_survival_r1.stan")
-# surv_fit1<-sampling(survival_model1,data = stan_dat_surv,
-#                     chains=3,iter=8000,
-#                     pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
-#                              "beta_Pa","beta_Pu","beta_Ps",
-#                              "sigma_year","sigma_cohort","sigma_plot","log_lik"), 
-#                     save_warmup=F)
-##compare models
-# loo0<-loo(surv_fit0)
-# loo1<-loo(surv_fit1)
-# loo_compare(loo0,loo1)
-# stopifnot(nrow(loo0$pointwise) == nrow(loo1$pointwise))
-# pareto_k_table(loo0);pareto_k_table(loo1)
-# > loo_compare(loo0,loo1)
-# elpd_diff se_diff
-# model2   0.0       0.0  
-# model1 -28.5       8.2  
-
-##cohort model is supported - refit with the alphas for each cohort
+##total obs in the survival model
+stan_dat_surv$n_Ap+stan_dat_surv$n_Er+stan_dat_surv$n_Ev+
+  stan_dat_surv$n_Fs+stan_dat_surv$n_Pa+stan_dat_surv$n_Ps+stan_dat_surv$n_Pu
 
 ##now rerun the +cohort model with all parameters I need
-survival_model1 <- stan_model("analysis/Stan/ltreb_age_survival_r1.stan")
-surv_fit<-sampling(survival_model1,data = stan_dat_surv,
+survival_model <- stan_model("analysis/Stan/ltreb_age_survival_r2.stan")
+surv_fit<-sampling(survival_model,data = stan_dat_surv,
                     chains=3,iter=5000,
                     pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
                     "beta_Pa","beta_Pu","beta_Ps",
-                    "sigma_year","sigma_plot","sigma_cohort",
-                    "alpha_y","alpha_c",
+                    "sigma_year","sigma_plot","alpha_y",
                     "sim_Ap","sim_Er","sim_Ev","sim_Fs",
                     "sim_Pa","sim_Pu","sim_Ps"),save_warmup=F)
 
-#write_rds(surv_fit,"analysis/Stan/surv_fit_r1.rds")
-surv_fit<-readRDS("analysis/Stan/surv_fit_r1.rds")
+##save / read in
+#write_rds(surv_fit,"analysis/Stan/surv_fit_r2.rds")
+surv_fit<-readRDS("analysis/Stan/surv_fit_r2.rds")
 
 ## look at Rhats
 rhats <- summary(surv_fit)$summary[, "Rhat"]
 hist(rhats) ##good!
 
 ## check trace plots
-bayesplot::mcmc_trace(surv_fit,pars = c("sigma_year","sigma_cohort","sigma_plot"))
+bayesplot::mcmc_trace(surv_fit,pars = c("sigma_year","sigma_plot"))
 bayesplot::mcmc_trace(surv_fit,regex_pars = c("beta_Ap"))
 bayesplot::mcmc_trace(surv_fit,regex_pars = c("beta_Er"))
 
@@ -290,11 +256,8 @@ ppc_bars(stan_dat_surv$y_Pu, y_Pu_sim$sim_Pu)
 y_Ps_sim <- rstan::extract(surv_fit,pars="sim_Ps")
 ppc_bars(stan_dat_surv$y_Ps, y_Ps_sim$sim_Ps)
 
-##do cohort and year variances trade off?
-bayesplot::mcmc_pairs(surv_fit, pars = c("sigma_cohort", "sigma_year"))
-
 ## wrangle parameter indices to get age- and endo-specific survival
-quantile_probs<-c(0.05,0.25,0.5,0.75,0.95)
+quantile_probs<-c(0.025,0.25,0.5,0.75,0.975) #median, 50%, and 95% CI
 ## Agrostis perennans
 Ap_par <- rstan::extract(surv_fit,pars="beta_Ap")
 colnames(Ap_par$beta_Ap)<-colnames(Xs_Ap)
@@ -464,6 +427,10 @@ posterior_long_Ps_surv <- as.data.frame(propfx_Ps_surv) %>%
   mutate(relage=as.numeric(relage),species="POSY",age=relage*7)
 
 # Compute density summary (median, credible intervals)
+
+spp_list<-c("AGPE","ELRI","ELVI","FESU","POAL","POAU","POSY")
+species_colors<-rainbow(length(spp_list))
+
 posterior_summary_surv <- bind_rows(posterior_long_Ap_surv,posterior_long_Er_surv,posterior_long_Ev_surv,
                                posterior_long_Fs_surv,posterior_long_Pa_surv,posterior_long_Pu_surv,posterior_long_Ps_surv) %>%
   group_by(relage,age,species) %>%
@@ -474,7 +441,22 @@ posterior_summary_surv <- bind_rows(posterior_long_Ap_surv,posterior_long_Er_sur
     lower75 = quantile(Value, 0.125),upper75 = quantile(Value, 0.875),
     lower50 = quantile(Value, 0.25),upper50 = quantile(Value, 0.75),
     prob_pos = mean(Value>0)
-  )
+  ) %>% 
+  mutate(species2 = case_when(species=="AGPE" ~ "A.p.",
+                              species=="ELRI" ~ "E.vil.",
+                              species=="ELVI" ~ "E.vir.",
+                              species=="FESU" ~ "F.s.",
+                              species=="POAL" ~ "P.al.",
+                              species=="POAU" ~ "P.au.",
+                              species=="POSY" ~ "P.s."),
+         spp_col = case_when(species=="AGPE" ~ species_colors[1],
+                             species=="ELRI" ~ species_colors[2],
+                             species=="ELVI" ~ species_colors[3],
+                             species=="FESU" ~ species_colors[4],
+                             species=="POAL" ~ species_colors[5],
+                             species=="POAU" ~ species_colors[6],
+                             species=="POSY" ~ species_colors[7]))
+
 ## what is the max and min prob pos for each species?
 posterior_summary_surv %>% 
   group_by(species) %>% 
@@ -485,11 +467,8 @@ posterior_summary_surv %>%
 rm(posterior_long_Ap_surv,posterior_long_Er_surv,posterior_long_Ev_surv,
    posterior_long_Fs_surv,posterior_long_Pa_surv,posterior_long_Pu_surv,posterior_long_Ps_surv)
 
-spp_list<-c("AGPE","ELRI","ELVI","FESU","POAL","POAU","POSY")
-species_colors<-rainbow(length(spp_list))
-
 ## nice figure
-jpeg("manuscript/figures/age_specific_survival_r1.jpg", width = 3300, height = 1500, res = 300)
+jpeg("manuscript/figures/age_specific_survival_r2.jpg", width = 3300, height = 1500, res = 300)
 {par(mfrow=c(2,4),mar=c(4,4,2,1))
   plot(Ap_surv$age_lump,Ap_surv$surv_t1,type="n",xlab="Age group",ylab="Survival",
        xlim=c(-0.5,5.5),axes=F)
@@ -643,7 +622,8 @@ jpeg("manuscript/figures/age_specific_survival_r1.jpg", width = 3300, height = 1
           col = species_colors[sp], lwd = 2) 
   }
   text(1.02,posterior_summary_surv$prob_pos[posterior_summary_surv$relage==1], font=3,cex=0.8,
-       adj=0,labels=c("A.p.","E.vil.","E.vir.","F.s.","P.al.","P.au.","P.s."), col = species_colors)
+       adj=0,labels=posterior_summary_surv$species2[posterior_summary_surv$relage==1], 
+       col = posterior_summary_surv$spp_col[posterior_summary_surv$relage==1])
 }
 dev.off()
 
@@ -699,7 +679,6 @@ Xf_Ps<-model.matrix(~as.factor(age_lump) * as.factor(endo_01),data=Ps_fert)
 
 stan_dat_fert <- list(n_spp=7,
                       n_years=max(fert_data$year_index),
-                      n_cohorts=max(fert_data$cohort_index),
                       n_plots=max(fert_data$plot),
                       ##AGPE
                       y_Ap=Ap_fert$flw_count_t, 
@@ -707,7 +686,6 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Ap_dim=ncol(Xf_Ap),
                       X_Ap=Xf_Ap,
                       year_Ap=Ap_fert$year_index,
-                      cohort_Ap=Ap_fert$cohort_index,
                       plot_Ap=Ap_fert$plot,
                       ##ELRI
                       y_Er=Er_fert$flw_count_t, 
@@ -715,7 +693,6 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Er_dim=ncol(Xf_Er),
                       X_Er=Xf_Er,
                       year_Er=Er_fert$year_index,
-                      cohort_Er=Er_fert$cohort_index,
                       plot_Er=Er_fert$plot,
                       ##ELVI
                       y_Ev=Ev_fert$flw_count_t, 
@@ -723,7 +700,6 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Ev_dim=ncol(Xf_Ev),
                       X_Ev=Xf_Ev,
                       year_Ev=Ev_fert$year_index,
-                      cohort_Ev=Ev_fert$cohort_index,
                       plot_Ev=Ev_fert$plot,
                       ##FESU
                       y_Fs=Fs_fert$flw_count_t, 
@@ -731,7 +707,6 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Fs_dim=ncol(Xf_Fs),
                       X_Fs=Xf_Fs,
                       year_Fs=Fs_fert$year_index,
-                      cohort_Fs=Fs_fert$cohort_index,
                       plot_Fs=Fs_fert$plot,
                       ##POAL
                       y_Pa=Pa_fert$flw_count_t, 
@@ -739,7 +714,6 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Pa_dim=ncol(Xf_Pa),
                       X_Pa=Xf_Pa,
                       year_Pa=Pa_fert$year_index,
-                      cohort_Pa=Pa_fert$cohort_index,
                       plot_Pa=Pa_fert$plot,
                       ##POAU
                       y_Pu=Pu_fert$flw_count_t, 
@@ -747,68 +721,39 @@ stan_dat_fert <- list(n_spp=7,
                       beta_Pu_dim=ncol(Xf_Pu),
                       X_Pu=Xf_Pu,
                       year_Pu=Pu_fert$year_index,
-                      cohort_Pu=Pu_fert$cohort_index,
                       plot_Pu=Pu_fert$plot,
-                      ##POAU
+                      ##POSY
                       y_Ps=Ps_fert$flw_count_t, 
                       n_Ps=length(Ps_fert$flw_count_t),
                       beta_Ps_dim=ncol(Xf_Ps),
                       X_Ps=Xf_Ps,
                       year_Ps=Ps_fert$year_index,
-                      cohort_Ps=Ps_fert$cohort_index,
                       plot_Ps=Ps_fert$plot)
-#needed for log likelihood
-stan_dat_fert$n_total = stan_dat_fert$n_Ap + stan_dat_fert$n_Er + stan_dat_fert$n_Ev + stan_dat_fert$n_Fs + stan_dat_fert$n_Pa + stan_dat_fert$n_Pu + stan_dat_fert$n_Ps
 
-##model comparison with and without cohort effects
-# fertility_model0 <- stan_model("analysis/Stan/ltreb_age_fertility_r0.stan")
-# fert_fit0<-sampling(fertility_model0,data = stan_dat_fert,
-#                    chains=3,iter=8000,
-#                    pars = c("sigma_year","sigma_plot","log_lik"), 
-#                    save_warmup=F)
-# 
-# fertility_model1 <- stan_model("analysis/Stan/ltreb_age_fertility_r1.stan")
-# fert_fit1<-sampling(fertility_model1,data = stan_dat_fert,
-#                     chains=3,iter=8000,
-#                     pars = c("sigma_year","sigma_plot","sigma_cohort","log_lik"), 
-#                     save_warmup=F)
-# 
-# bayesplot::mcmc_trace(fert_fit0,pars = c("sigma_year","sigma_plot"))
-# bayesplot::mcmc_trace(fert_fit1,pars = c("sigma_year","sigma_cohort","sigma_plot"))
+##total obs in the survival model
+stan_dat_fert$n_Ap+stan_dat_fert$n_Er+stan_dat_fert$n_Ev+
+  stan_dat_fert$n_Fs+stan_dat_fert$n_Pa+stan_dat_fert$n_Ps+stan_dat_fert$n_Pu
 
-##compare models
-# loo0<-loo(fert_fit0)
-# loo1<-loo(fert_fit1)
-# loo_compare(loo0,loo1)
-# stopifnot(nrow(loo0$pointwise) == nrow(loo1$pointwise))
-# pareto_k_table(loo0);pareto_k_table(loo1)
-# > loo_compare(loo0,loo1)
-# elpd_diff se_diff
-# model2   0.0       0.0  
-# model1 -44.5      11.1 
-
-
-## refit fertility model with all the parameters I need plus PPC
-fertility_model1 <- stan_model("analysis/Stan/ltreb_age_fertility_r1.stan")
-fert_fit<-sampling(fertility_model1,data = stan_dat_fert,
-                   chains=3,iter=8000,
+fertility_model <- stan_model("analysis/Stan/ltreb_age_fertility_r2.stan")
+fert_fit<-sampling(fertility_model,data = stan_dat_fert,
+                   chains=3,iter=5000,
                    pars = c("beta_Ap","beta_Er","beta_Ev","beta_Fs",
                             "beta_Pa","beta_Pu","beta_Ps","phi_spp",
-                            "sigma_year","sigma_plot","sigma_cohort",
-                            "alpha_y","alpha_c",
+                            "sigma_year","sigma_plot","alpha_y",
                             "sim_Ap","sim_Er","sim_Ev","sim_Fs",
                             "sim_Pa","sim_Pu","sim_Ps"), 
                    save_warmup=F)
-#write_rds(fert_fit,"analysis/Stan/fert_fit_r1.rds")
-fert_fit<-readRDS("analysis/Stan/fert_fit_r1.rds")
+#write_rds(fert_fit,"analysis/Stan/fert_fit_r2.rds")
+fert_fit<-readRDS("analysis/Stan/fert_fit_r2.rds")
 
 ## look at Rhats
 rhats <- summary(fert_fit)$summary[, "Rhat"]
 hist(rhats) ##good!
 
 ## check a few trace plots
-bayesplot::mcmc_trace(fert_fit,pars = c("sigma_year","sigma_plot","sigma_cohort"))
-bayesplot::mcmc_trace(fert_fit,pars = c("beta_Ap[1]","beta_Er[1]"))
+bayesplot::mcmc_trace(fert_fit,pars = c("sigma_year","sigma_plot"))
+bayesplot::mcmc_trace(fert_fit,regex_pars = c("beta_Ap"))
+bayesplot::mcmc_trace(fert_fit,regex_pars = c("beta_Er"))
 
 ##posterior predictive check
 ## could the negbin generate the zero-heavy data? YES
@@ -839,9 +784,6 @@ ppc_stat(stan_dat_fert$y_Pu, y_Pu_sim$sim_Pu, stat = "prop_zero", binwidth = 0.0
 y_Ps_sim <- rstan::extract(fert_fit,pars="sim_Ps")
 ppc_bars(stan_dat_fert$y_Ps, y_Ps_sim$sim_Ps)+xlim(-1,20)
 ppc_stat(stan_dat_fert$y_Ps, y_Ps_sim$sim_Ps, stat = "prop_zero", binwidth = 0.005)
-
-##do cohort and year variances trade off?
-bayesplot::mcmc_pairs(fert_fit, pars = c("sigma_cohort", "sigma_year"))
 
 ## wrangle parameter indices to get age- and endo-specific survival
 ## Agrostis perennans
@@ -1008,7 +950,22 @@ posterior_summary_fert <- bind_rows(posterior_long_Ap_fert,posterior_long_Er_fer
     lower75 = quantile(Value, 0.125),upper75 = quantile(Value, 0.875),
     lower50 = quantile(Value, 0.25),upper50 = quantile(Value, 0.75),
     prob_pos = mean(Value>0)
-  )
+  ) %>% 
+  mutate(species2 = case_when(species=="AGPE" ~ "A.p.",
+                              species=="ELRI" ~ "E.vil.",
+                              species=="ELVI" ~ "E.vir.",
+                              species=="FESU" ~ "F.s.",
+                              species=="POAL" ~ "P.al.",
+                              species=="POAU" ~ "P.au.",
+                              species=="POSY" ~ "P.s."),
+         spp_col = case_when(species=="AGPE" ~ species_colors[1],
+                             species=="ELRI" ~ species_colors[2],
+                             species=="ELVI" ~ species_colors[3],
+                             species=="FESU" ~ species_colors[4],
+                             species=="POAL" ~ species_colors[5],
+                             species=="POAU" ~ species_colors[6],
+                             species=="POSY" ~ species_colors[7]))
+
 ## what is the max and min prob pos for each species?
 posterior_summary_fert %>% 
   group_by(species) %>% 
@@ -1018,33 +975,8 @@ posterior_summary_fert %>%
 #dump big objects
 rm(posterior_long_Ap_fert,posterior_long_Er_fert,posterior_long_Ev_fert,
    posterior_long_Fs_fert,posterior_long_Pa_fert,posterior_long_Pu_fert,posterior_long_Ps_fert)
-rm(fert_fit)
 
-ggplot(posterior_summary_fert, aes(x = relage, y = median)) +
-  geom_ribbon(aes(x=relage,ymin = lower90, ymax = upper90), fill = "blue", alpha = 0.05) +  # Shaded credible interval
-  geom_ribbon(aes(x=relage,ymin = lower50, ymax = upper50), fill = "blue", alpha = 0.1) +  # Shaded credible interval
-  geom_line(aes(group=1),size = 1, color = "blue") +  # Median posterior line
-  theme_minimal() + geom_hline(yintercept=0) + xlim(0,1)+
-  labs(x = "Relative age",
-       y = "Fertility effect size",
-       fill = "95% Credible Interval")+
-  facet_wrap(~species,scales="free_y")
-
-probpos_fertility <- ggplot(posterior_summary_fert)+
-  geom_line(aes(x = relage, y = prob_pos, col=species),size=1)+
-  theme_minimal() + geom_hline(yintercept=0.5,linetype="dashed") + ylim(0,1) + xlim(0,1) +
-  labs(x = "Relative age",
-       y = "Probability of positive symbiont effect")+
-  theme(
-    panel.grid.major = element_blank(),  # Remove major grid lines
-    panel.grid.minor = element_blank(),
-    axis.title = element_text(size = 16)   
-  )
-probpos_survival + probpos_fertility
-#ggsave("manuscript/figures/probpos_fertility.jpg")
-
-
-jpeg("manuscript/figures/age_specific_fertility_r1.jpg", width = 3300, height = 1500, res = 300)
+jpeg("manuscript/figures/age_specific_fertility_r2.jpg", width = 3300, height = 1500, res = 300)
 {par(mfrow=c(2,4),mar=c(4,4,2,1))
   ylim_quantile<-0.95
   plot(Ap_fert$age_lump,Ap_fert$flw_count_t,type="n",xlab="Age group",ylab="Fertility (# infs)",
@@ -1198,11 +1130,10 @@ jpeg("manuscript/figures/age_specific_fertility_r1.jpg", width = 3300, height = 
           col = species_colors[sp], lwd = 2) 
   }
   text(1.02,posterior_summary_fert$prob_pos[posterior_summary_fert$relage==1], font=3,cex=0.8,
-       adj=0,labels=c("A.p.","E.vil.","E.vir.","F.s.","P.al.","P.au.","P.s."), col = species_colors)
+       adj=0,labels=posterior_summary_fert$species2[posterior_summary_fert$relage==1],
+       col = posterior_summary_fert$spp_col[posterior_summary_fert$relage==1])
 }
 dev.off()
-
-posterior_summary_fert[posterior_summary_fert$relage==1,c("species","prob_pos")]
 
 ##combine survival and fertility probpos data frames
 bind_rows(posterior_summary_fert %>% mutate(vital_rate="Fertility"),
@@ -1230,15 +1161,15 @@ bind_rows(posterior_summary_fert %>% mutate(vital_rate="Fertility"),
     strip.text = element_text(size = 16, face = "bold"))+
   scale_x_continuous(breaks = 0:7) +
   facet_grid(rows="vital_rate")->probpos_combo
-ggsave("manuscript/figures/probpos_combo_age.jpg",plot = probpos_combo)
+ggsave("manuscript/figures/probpos_combo_age_r2.jpg",plot = probpos_combo)
 
-## year, plot, and cohort effects in survival and fertility
+## year, plot effects in survival and fertility
 bind_rows(
 surv_fit %>% 
-  gather_draws(sigma_year,sigma_cohort,sigma_plot) %>% 
+  gather_draws(sigma_year,sigma_plot) %>% 
   mutate(vital_rate="survival"),
 fert_fit %>% 
-  gather_draws(sigma_year,sigma_cohort,sigma_plot) %>% 
+  gather_draws(sigma_year,sigma_plot) %>% 
   mutate(vital_rate="fertility")) %>% 
   ggplot(aes(x=.value,fill=.variable))+
   geom_density(
@@ -1246,40 +1177,35 @@ fert_fit %>%
     alpha = 0.25,
     linewidth = 0.2)+
   scale_fill_discrete(name=" ",labels = c("sigma_year" = "Year",
-                                          "sigma_cohort" = "Cohort",
                                           "sigma_plot" = "Plot")) +
   xlab("Random effect variance")+ylab("Posterior density")+
   theme_classic()+
   theme(legend.position = c(.8, .8))+
   facet_grid("vital_rate")->sigmas_posteriors
-ggsave(plot=sigmas_posteriors,"manuscript/figures/sigmas_posteriors.jpg")
+ggsave(plot=sigmas_posteriors,"manuscript/figures/sigmas_posteriors_r2.jpg")
 
-##look at year and cohort effects
+##look at year effects
 bind_rows(
 surv_fit %>% 
-  spread_draws(alpha_y[i,j],alpha_c[i,j]) %>% 
+  spread_draws(alpha_y[i,j]) %>% 
   rename(species=i,year=j) %>% 
   group_by(species,year) %>% 
   summarise(y_mean=mean(alpha_y),
-            c_mean=mean(alpha_c),
             y_lower=quantile(alpha_y,probs=0.025),
-            y_upper=quantile(alpha_y,probs=0.975),
-            c_lower=quantile(alpha_c,probs=0.025),
-            c_upper=quantile(alpha_c,probs=0.975)) %>% 
+            y_upper=quantile(alpha_y,probs=0.975)) %>% 
   mutate(vital_rate="Survival"),
 fert_fit %>% 
-  spread_draws(alpha_y[i,j],alpha_c[i,j]) %>% 
+  spread_draws(alpha_y[i,j]) %>% 
   rename(species=i,year=j) %>% 
+  mutate(year = year + 1) %>% ##year indices for fertility are 2010:2021
   group_by(species,year) %>% 
   summarise(y_mean=mean(alpha_y),
-            c_mean=mean(alpha_c),
             y_lower=quantile(alpha_y,probs=0.025),
-            y_upper=quantile(alpha_y,probs=0.975),
-            c_lower=quantile(alpha_c,probs=0.025),
-            c_upper=quantile(alpha_c,probs=0.975)) %>% 
+            y_upper=quantile(alpha_y,probs=0.975)) %>% 
   mutate(vital_rate="Fertility")
 ) -> surv_fert_summary
 
+##dump big objects
 rm(surv_fit,fert_fit)
 
 surv_fert_summary %<>% 
@@ -1300,70 +1226,11 @@ ggplot(surv_fert_summary,
   geom_point(size = 2.2,position = position_dodge(width = 0.6)) +
   labs(x = "Year effect",y = "Year",color = "Species") +
   scale_color_manual(values = species_colors)+xlim(-5,5)+
-  theme_classic() + facet_wrap(~vital_rate)->year_effects_plot
+  theme_classic() + facet_wrap(~vital_rate)+
+  theme(legend.text = element_text(face = "italic"))->year_effects_plot
+ggsave(plot=year_effects_plot,"manuscript/figures/year_effects_plot_r2.jpg")
 
-ggplot(surv_fert_summary,
-       aes(x = c_mean,y = factor(year+(min(ltreb_age_lump$year_t)-1)),xmin = c_lower,xmax = c_upper,
-           color = factor(Species))) +
-  geom_vline(xintercept = 0,linetype = "dashed",color = "grey60") +
-  geom_errorbarh(height = 0,linewidth = 0.7,position = position_dodge(width = 0.6)) +
-  geom_point(size = 2.2,position = position_dodge(width = 0.6)) +
-  labs(x = "Year effect",y = "Cohort",color = "Species") +
-  scale_color_manual(values = species_colors)+xlim(-5,5)+
-  theme_classic() + facet_wrap(~vital_rate)->cohort_effects_plot
 
-ggplot(surv_fert_summary %>% filter(vital_rate=="Survival"), 
-       aes(y = factor(year+(min(ltreb_age_lump$year_t)-1),levels = rev(2009:2021)))) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_errorbarh(aes(xmin = y_lower,xmax = y_upper,color = "Year"),
-    height = 0,linewidth = 0.7,position = position_nudge(y = 0.12)) +
-  geom_point(aes(x = y_mean, color = "Year"),
-    size = 2.2,position = position_nudge(y = 0.12)) +
-  geom_errorbarh(
-    aes(xmin = c_lower,xmax = c_upper,color = "Cohort"),
-    height = 0,linewidth = 0.7,position = position_nudge(y = -0.12)) +
-  geom_point(aes(x = c_mean, color = "Cohort"),size = 2.2,
-    position = position_nudge(y = -0.12)) +
-  facet_wrap(~ Species, scales = "free_y") +
-  scale_color_manual(name = NULL,
-    values = c("Year" = "tomato","Cohort" = "cornflowerblue")) +
-  labs(x = "Posterior effect",y = "Year") +
-  theme_classic() + ylab(" ")+
-  theme(legend.position = "top",
-    strip.text = element_text(face = "italic"),
-    panel.spacing = unit(1, "lines"))->survival_year_cohort_effects
-ggsave(plot=survival_year_cohort_effects,"manuscript/figures/survival_year_cohort_effects.jpg")
-
-##need this because cohort and year effects have different years
-fert_plot_dat <- surv_fert_summary %>%
-  filter(vital_rate == "Fertility") %>%
-  mutate(
-    calendar_year = factor(year + min(fert_data$year_t) - 1,
-                           levels = rev(2009:2021)),
-    cohort_year   = factor(year + min(fert_data$birth) - 1,
-                           levels = rev(2009:2021)))
-
-ggplot(fert_plot_dat) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_errorbarh(aes(xmin = y_lower, xmax = y_upper, y = calendar_year, color = "Year"),
-                 height = 0, linewidth = 0.7, position = position_nudge(y = 0.12)) +
-  geom_point(aes(x = y_mean, y = calendar_year, color = "Year"),
-             size = 2.2, position = position_nudge(y = 0.12)) +
-  geom_errorbarh(aes(xmin = c_lower, xmax = c_upper, y = cohort_year, color = "Cohort"),
-                 height = 0, linewidth = 0.7, position = position_nudge(y = -0.12)) +
-  geom_point(aes(x = c_mean, y = cohort_year, color = "Cohort"),
-             size = 2.2, position = position_nudge(y = -0.12)) +
-  facet_wrap(~Species, scales = "free_y") +
-  scale_y_discrete(drop = FALSE) +
-  scale_color_manual(name = NULL,
-                     values = c("Year" = "tomato",
-                                "Cohort" = "cornflowerblue")) +
-  labs(x = "Posterior effect", y = NULL) +
-  theme_classic() +
-  theme(legend.position = "top",
-        strip.text = element_text(face = "italic"),
-        panel.spacing = unit(1, "lines"))->fertility_year_cohort_effects
-ggsave(plot=fertility_year_cohort_effects,"manuscript/figures/fertility_year_cohort_effects.jpg")
 
 # recruitment model -------------------------------------------------------
 ## estimate the rate of recruitment per inflorescence (which is the unit of fertility)
@@ -1476,7 +1343,7 @@ r2_ep<-exp(apply(recruit_params$alpha2+recruit_params$beta2,2,quantile,probs=qua
 
 ##make a plot of parameter estimates
 spp_list<-c("AGPE","ELRI","ELVI","FESU","POAL","POAU","POSY")
-jpeg("manuscript/figures/recruitment.jpg", width = 1800, height = 1800, res = 300)
+jpeg("manuscript/figures/recruitment_r2.jpg", width = 1800, height = 1800, res = 300)
 {plot(1:7,r1_em[3,],type="n",ylim=c(0,max(c(r1_em,r1_ep,r2_em,r2_ep))),xlim=c(0.8,7.2),
      ylab="Recruits / Inflorescence",xlab="Species",axes=F,cex.lab=1.2)
 arrows((1:7)-.2,r1_em[2,],
@@ -1529,8 +1396,12 @@ firstflower_data %>% group_by(id) %>% summarise(n_flowered = sum(flowered)) %>% 
 ## aggregate to a single flowering age by individuals
 plant_level <- firstflower_data %>% filter(flowered==1)
 
-##note the year indices do not line up with original ltreb data
+##note the year indices do not line up with original ltreb data because everyone in 2009 was age 0
 table(firstflower_data$year_t);table(ltreb_age_lump$year_t)
+
+##cohort is needed for the PPC - so that years advance with age
+table(firstflower_data$birth,firstflower_data$cohort_index)
+table(firstflower_data$year_t,firstflower_data$year_index)
 
 ## prep data for model
 ## max age by species
@@ -1551,8 +1422,6 @@ firstflower_dat <- list(
   endo = firstflower_data$endo_01,
   n_plots = max(firstflower_data$plot),
   plot = firstflower_data$plot,
-  n_cohorts = max(firstflower_data$cohort_index),
-  cohort = firstflower_data$cohort_index,
   n_years = max(firstflower_data$year_index),
   year = firstflower_data$year_index,
   max_age = max_age,
@@ -1561,23 +1430,23 @@ firstflower_dat <- list(
   endo_ind = plant_level$endo_01,
   plot_ind = plant_level$plot,
   year_ind = plant_level$year_index,
+  n_cohorts = max(plant_level$cohort_index),
   cohort_ind = plant_level$cohort_index)
 
-##hazard version
-firstflower_hazard_model <- stan_model("analysis/Stan/ltreb_firstflower_hazard_r1.stan")
+##hazard model
+firstflower_hazard_model <- stan_model("analysis/Stan/ltreb_firstflower_hazard_r2.stan")
 firstflower_hazard_fit<-sampling(firstflower_hazard_model,data = firstflower_dat,
                           chains=3,iter=3000,
                           pars = c("intercept","age_eff",
-                                   "sigma_plot","sigma_cohort","sigma_year",
-                                   "mean_age","age_rep",
-                                   "alpha_c","alpha_y"), 
+                                   "sigma_plot","sigma_year",
+                                   "mean_age","age_rep"), 
                           save_warmup=F)
 
-#write_rds(firstflower_hazard_fit,"analysis/Stan/firstflower_hazard_fit_r1.rds")
-firstflower_hazard_fit<-read_rds("analysis/Stan/firstflower_hazard_fit_r1.rds")
+#write_rds(firstflower_hazard_fit,"analysis/Stan/firstflower_hazard_fit_r2.rds")
+firstflower_hazard_fit<-read_rds("analysis/Stan/firstflower_hazard_fit_r2.rds")
 
 ##trace plots
-bayesplot::mcmc_trace(firstflower_hazard_fit,pars = c("sigma_plot","sigma_cohort","sigma_year"))
+bayesplot::mcmc_trace(firstflower_hazard_fit,pars = c("sigma_plot","sigma_year"))
 bayesplot::mcmc_intervals(firstflower_hazard_fit,regex_pars = c("age_eff"))
 bayesplot::mcmc_trace(firstflower_hazard_fit,pars = c("intercept"))
 
@@ -1587,28 +1456,13 @@ bayesplot::ppc_bars(y=plant_level$age,yrep=firstflower_age_rep)
 bayesplot::ppc_bars_grouped(y=plant_level$age,yrep=firstflower_age_rep,
                             group=plant_level$species,facet_args=list(scales="free_y"))
 
-##look for posterior correlation between age and year effects
-alpha_c<-rstan::extract(firstflower_hazard_fit,"alpha_c")$alpha_c
-alpha_y<-rstan::extract(firstflower_hazard_fit,"alpha_y")$alpha_y
-
-s<-7  # species index of interest
-corrplot::corrplot(cor(alpha_c[,s,], alpha_y[,s,]),method="color")
-
-cohorts_to_check <- 5:7
-years_to_check <- 5:7   #cohort k overlaps years k+1, k+2, ...
-draws_mat <- cbind(alpha_c[, s, cohorts_to_check],alpha_y[, s, years_to_check])
-colnames(draws_mat) <- c(paste0("cohort_", cohorts_to_check), paste0("year_", years_to_check))
-n_sub <- 500
-sub_idx <- sample(1:nrow(draws_mat), n_sub)
-bayesplot::mcmc_pairs(draws_mat[sub_idx, ], diag_fun = "dens", off_diag_fun = "scatter")
-
 ##extract mean flowering age
 firstflower_mean_age<-rstan::extract(firstflower_hazard_fit,c("mean_age"))$mean_age
 firstflowerage_em<-apply(firstflower_mean_age[,,1],2,quantile,probs=quantile_probs)
 firstflowerage_ep<-apply(firstflower_mean_age[,,2],2,quantile,probs=quantile_probs)
 
 ##nice figure for manuscript with data and expected values
-jpeg("manuscript/figures/firstflower_r1.jpg", width = 1800, height = 1800, res = 300)
+jpeg("manuscript/figures/firstflower_r2.jpg", width = 1800, height = 1800, res = 300)
 {plot(1:7,firstflowerage_em[3,],type="n",ylim=c(0.5,max(plant_level$age)),xlim=c(0.8,7.2),
      ylab="Age at first reproduction (years)",xlab="Host species",axes=F,cex.lab=1.2)
 points(jitter(plant_level$species_index[plant_level$endo_01==0])-0.2,
@@ -1644,7 +1498,7 @@ Pu_seeds$vt<-(Pu_seeds$s.eplus+Pu_seeds$add..s.eplus)/(Pu_seeds$s.scored+Pu_seed
 # Assemble list of matrices from posterior samples ------------------------
 
 ##grab random samples of indices
-n_post<-500
+n_post<-1000
 ## the recruit model has fewer posterior samples
 set.seed(12345)
 survfert_i<-sample(1:dim(Ap_par$beta_Ap)[1],n_post,replace = F)
@@ -2259,7 +2113,7 @@ lifehistorypost<-bind_rows(Ap_lifehistorypost,
                            Ps_lifehistorypost) %>% 
   mutate(species = factor(species))
 
-write.csv(lifehistorypost,"analysis/lifehistorypost_r1.csv")
+write.csv(lifehistorypost,"analysis/lifehistorypost_r2.csv")
 
 
 # cost of reproduction analysis -------------------------------------------
