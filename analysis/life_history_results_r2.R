@@ -7,7 +7,7 @@ library(patchwork)
 library(ggforce)
 ##read in life history outputs
 lifehistorypost<-read.csv("analysis/lifehistorypost_r2.csv")
-## add posterior draw -- we used 500 samples for each species
+## add posterior draw -- we used 1000 samples for each species
 n_post<-1000
 lifehistorypost$draw<-rep(1:n_post,times=7)
 
@@ -549,6 +549,19 @@ ggsave("manuscript/figures/LHtraits_heatmap_r2.jpg",
        height = 8,      # height in inches
        dpi = 300,       # resolution
        units = "in")
+
+## what is the mean change in lambda?
+lifehistorypost %>% 
+  group_by(species) %>% 
+  summarise(mean_change = mean(lambda_diff)) %>% 
+  summarise(sp_mean_change = mean(mean_change))
+
+## mean change in lambda for the four most strongly affected
+lifehistorypost %>% 
+  filter(species %in% c("AGPE","FESU","POAL","POAU")) %>% 
+  group_by(species) %>% 
+  summarise(mean_change = mean(lambda_diff)) %>% 
+  summarise(sp_mean_change = mean(mean_change))
 
 ## what is the mean delay in flowering age?
 lifehistorypost %>% 
