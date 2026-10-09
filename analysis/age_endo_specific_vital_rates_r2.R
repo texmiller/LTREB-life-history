@@ -228,7 +228,7 @@ surv_fit<-sampling(survival_model,data = stan_dat_surv,
 
 ##save / read in
 #write_rds(surv_fit,"analysis/Stan/surv_fit_r2.rds")
-surv_fit<-readRDS("analysis/Stan/surv_fit_r2.rds")
+#surv_fit<-readRDS("analysis/Stan/surv_fit_r2.rds")
 
 ## look at Rhats
 rhats <- summary(surv_fit)$summary[, "Rhat"]
@@ -742,8 +742,9 @@ fert_fit<-sampling(fertility_model,data = stan_dat_fert,
                             "sim_Ap","sim_Er","sim_Ev","sim_Fs",
                             "sim_Pa","sim_Pu","sim_Ps"), 
                    save_warmup=F)
+##save / read in
 #write_rds(fert_fit,"analysis/Stan/fert_fit_r2.rds")
-fert_fit<-readRDS("analysis/Stan/fert_fit_r2.rds")
+#fert_fit<-readRDS("analysis/Stan/fert_fit_r2.rds")
 
 ## look at Rhats
 rhats <- summary(fert_fit)$summary[, "Rhat"]
@@ -1323,8 +1324,9 @@ recruit_fit<-sampling(recruit_model,data = recruit_dat,
                             "sigma_year","sigma_plot",
                             "y_sim"), 
                    save_warmup=F)
+##save / read in
 #write_rds(recruit_fit,"analysis/Stan/recruit_fit.rds")
-recruit_fit<-read_rds("analysis/Stan/recruit_fit.rds")
+#recruit_fit<-read_rds("analysis/Stan/recruit_fit.rds")
 
 ## check a few trace plots
 bayesplot::mcmc_trace(recruit_fit,pars = c("sigma_year","sigma_plot"))
@@ -1440,9 +1442,9 @@ firstflower_hazard_fit<-sampling(firstflower_hazard_model,data = firstflower_dat
                                    "sigma_plot","sigma_year",
                                    "mean_age","age_rep"), 
                           save_warmup=F)
-
+##save / read in
 #write_rds(firstflower_hazard_fit,"analysis/Stan/firstflower_hazard_fit_r2.rds")
-firstflower_hazard_fit<-read_rds("analysis/Stan/firstflower_hazard_fit_r2.rds")
+#firstflower_hazard_fit<-read_rds("analysis/Stan/firstflower_hazard_fit_r2.rds")
 
 ##trace plots
 bayesplot::mcmc_trace(firstflower_hazard_fit,pars = c("sigma_plot","sigma_year"))

@@ -1,0 +1,5 @@
+August 6 2026
+- switch from ZT Poisson to binomial hazard model for flowering age is complete and results look good
+- need to do: update methods with new model
+- I have gone back and forth with cohort effects or not. Results change a little with cohort effects, but not a lot. Main change is for endo effects in Poa autumnalis, and this makes me a little nervous, given the APC identity. I think I will go back to no cohort effects, and I can explain in the response letter why we did not do this (year = age + cohort)
+- this means I need to re-run all models and re-run 
