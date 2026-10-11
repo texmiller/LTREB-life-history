@@ -2,7 +2,7 @@
 ## Purpose: prep grass-endo demographic data for analysis
 ## LDW data are already QAQC'd through EDI package -- that just needs to be loaded
 ## POAU data need QAQC, done here
-setwd("C:/Users/tm9/Dropbox/github/LTREB-life-history")
+
 library(readxl)
 library(tidyverse)
 ## Note on data read-in: read_excel was coercing some data to NA
@@ -10,13 +10,8 @@ library(tidyverse)
 ## read_excel still used for plot read-in because that is small and simple
 
 # Poa autumnalis in TX ----------------------------------------------------
-## read in raw POAU data from Miller Lab drive folder
-# tom_dir<-"G:/Shared drives/Miller Lab/LTREB/POAU/"
-# use_dir<-tom_dir
-# poau_demog <- read.csv(paste0(use_dir,"POAU_SFAEF_demography_20082023.csv"))
 poau_demog <- read.csv("data prep/POAU_SFAEF_demography_20082023.csv")
-# poau_plots <- read_excel(paste0(use_dir,"POAU SFAEF demography complete2.xlsx"),
-#                                sheet = "POAU_plot_assignment")
+# plot-level endophyte status is stored in a separate csv
 poau_plots <- read.csv("data prep/POAU_plot_assignment.csv")
 
 poau <- left_join(poau_demog,poau_plots,by="Plot")
@@ -151,11 +146,6 @@ which(poau$inf_number_spring_t1-floor(poau$inf_number_spring_t1)>0)
 ## These data are published on EDI here
 ## https://doi.org/10.6073/pasta/ea7db07a578fb030a173f37f76596b62 (Accessed 2024-03-26).
 ## read in data and apply some of the data transformations used above
-## here i am reading in directly from the data package github
-## indiana<-read.csv("https://raw.githubusercontent.com/texmiller/LTREB-data-package/refs/heads/master/LDW_LTREB_20072022.csv")
-##update 10/20/2025 -- akiem and tom found an issue with agpe 2022 (see endodemog_data_processing.R)
-##here we now read in the updated version of the EDI data set from the local drive
-#indiana<-read.csv("C:/Users/tm9/Dropbox/github/LTREB-data-package/LDW_LTREB_20072022.csv")
 indiana<-read.csv("data prep/LDW_LTREB_20072022.csv")
 
 indiana %>% 
@@ -249,32 +239,3 @@ ltreb<-bind_rows(indiana_for_merge,poau_for_merge)
 names(ltreb)
 write.csv(ltreb,"data prep/ltreb_allspp_qaqc.csv")
 
-
-# the basement ------------------------------------------------------------
-# the updated indiana data (see above) appear to give slightly different results, esp for POAL fertility
-# compare what we had originally (on EDI) with the new update
-indiana1<-read.csv("https://raw.githubusercontent.com/texmiller/LTREB-data-package/refs/heads/master/LDW_LTREB_20072022.csv")
-indiana2<-read.csv("C:/Users/tm9/Dropbox/github/LTREB-data-package/LDW_LTREB_20072022.csv")
-nrow(indiana1);nrow(indiana2)
-##how many non-NA flw_count_t per species?
-left_join(indiana1 %>% group_by(species) %>% summarise(sum(!is.na(flw_count_t))),
-  indiana2 %>% group_by(species) %>% summarise(sum(!is.na(flw_count_t))),
-  by="species")
-# There are no differences here
-
-##how many ELRI recruit flowering events?
-indiana1 %>% filter(species=="ELRI" & flw_count_t>0 & origin_01==1) %>% summarise((n()))
-indiana2 %>% filter(species=="ELRI" & flw_count_t>0 & origin_01==1) %>% summarise((n()))
-
-# check for differences in the derived data product
-ltreb1<-read.csv("data prep/ltreb_allspp_qaqc.csv")
-ltreb2<-read.csv("data prep/ltreb_allspp_qaqc_July2025.csv")
-nrow(ltreb1);nrow(ltreb2)
-##difference here -- in which species?
-left_join(ltreb1 %>% group_by(species) %>% summarise(nrows1=n()),
-          ltreb2 %>% group_by(species) %>% summarise(nrows2=n()),
-          by="species") %>% mutate(diff=nrows1-nrows2)
-
-left_join(ltreb1 %>% group_by(species) %>% summarise(n_flwcount1=sum(!is.na(flw_count_t))),
-          ltreb2 %>% group_by(species) %>% summarise(n_flwcount2=sum(!is.na(flw_count_t))),
-          by="species") %>% mutate(diff=n_flwcount1-n_flwcount2)
