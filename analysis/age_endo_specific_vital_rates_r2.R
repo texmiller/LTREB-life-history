@@ -1612,8 +1612,8 @@ for(i in 1:n_post){
   Ap_lifehistorypost$lambda_ep[i]<-lambda(Ap_ep_U+Ap_ep_F)#Ap_ep$lambda
   
   ##check ergodicity and irreducibility
-  Ap_lifehistorypost$isergodic<-isErgodic(Ap_ep_U+Ap_ep_F)
-  Ap_lifehistorypost$isirreducible<-isIrreducible(Ap_ep_U+Ap_ep_F)
+  Ap_lifehistorypost$isergodic[i]<-isErgodic(Ap_ep_U+Ap_ep_F)
+  Ap_lifehistorypost$isirreducible[i]<-isIrreducible(Ap_ep_U+Ap_ep_F)
   
   ## Elymus villosus
   #collect parameter estimates
@@ -1691,8 +1691,8 @@ for(i in 1:n_post){
   #E+ symbiont fitness
   Er_lifehistorypost$lambda_ep_vt[i]<-lambda(Er_ep_U+Er_ep_F_vt)
   ##check ergodicity and irreducibility
-  Er_lifehistorypost$isergodic<-isErgodic(Er_ep_U+Er_ep_F)
-  Er_lifehistorypost$isirreducible<-isIrreducible(Er_ep_U+Er_ep_F)
+  Er_lifehistorypost$isergodic[i]<-isErgodic(Er_ep_U+Er_ep_F)
+  Er_lifehistorypost$isirreducible[i]<-isIrreducible(Er_ep_U+Er_ep_F)
   
   ##Elymus virginicus
   Ev_em_surv <- invlogit(c(Ev_par$beta_Ev[survfert_i[i],"(Intercept)"],
@@ -1770,8 +1770,8 @@ for(i in 1:n_post){
   Ev_lifehistorypost$lambda_ep_vt[i]<-lambda(Ev_ep_U+Ev_ep_F_vt)
   
   ##check ergodicity and irreducibility
-  Ev_lifehistorypost$isergodic<-isErgodic(Ev_ep_U+Ev_ep_F)
-  Ev_lifehistorypost$isirreducible<-isIrreducible(Ev_ep_U+Ev_ep_F)
+  Ev_lifehistorypost$isergodic[i]<-isErgodic(Ev_ep_U+Ev_ep_F)
+  Ev_lifehistorypost$isirreducible[i]<-isIrreducible(Ev_ep_U+Ev_ep_F)
   
   ## Festuca subverticillata
   Fs_em_surv <- invlogit(c(Fs_par$beta_Fs[survfert_i[i],"(Intercept)"],
@@ -1796,7 +1796,7 @@ for(i in 1:n_post){
                       Fs_par_fert$beta_Fs[survfert_i[i],"(Intercept)"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(age_lump)3"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(age_lump)3:as.factor(endo_01)1"],
                       Fs_par_fert$beta_Fs[survfert_i[i],"(Intercept)"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(age_lump)4"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(age_lump)4:as.factor(endo_01)1"],
                       Fs_par_fert$beta_Fs[survfert_i[i],"(Intercept)"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(endo_01)1"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(age_lump)5"]+Fs_par_fert$beta_Fs[survfert_i[i],"as.factor(age_lump)5:as.factor(endo_01)1"])))
-  Fs_vt <- mean(0.837,0.695,0.995)##Three populations in Table 1
+  Fs_vt <- mean(c(0.837,0.695,0.995))##Three populations in Table 1
 
   Fs_em_U<-Fs_em_F<-Fs_ep_U<-Fs_ep_F<-Fs_em_F_vt<-Fs_ep_F_vt<-matrix(0,Fs_dim,Fs_dim)
   diag(Fs_em_U[-1,-ncol(Fs_em_U)])<-c(0,Fs_em_surv[1:5])
@@ -1852,8 +1852,8 @@ for(i in 1:n_post){
   Fs_lifehistorypost$lambda_ep_vt[i]<-lambda(Fs_ep_U+Fs_ep_F_vt)
   
   ##check ergodicity and irreducibility
-  Fs_lifehistorypost$isergodic<-isErgodic(Fs_ep_U+Fs_ep_F)
-  Fs_lifehistorypost$isirreducible<-isIrreducible(Fs_ep_U+Fs_ep_F)
+  Fs_lifehistorypost$isergodic[i]<-isErgodic(Fs_ep_U+Fs_ep_F)
+  Fs_lifehistorypost$isirreducible[i]<-isIrreducible(Fs_ep_U+Fs_ep_F)
   
   ##Poa alsodes
   Pa_em_surv <- invlogit(c(Pa_par$beta_Pa[survfert_i[i],"(Intercept)"],
@@ -1922,8 +1922,8 @@ for(i in 1:n_post){
   Pa_lifehistorypost$lambda_ep_vt[i]<-lambda(Pa_ep_U+Pa_ep_F_vt)
   
   ##check ergodicity and irreducibility
-  Pa_lifehistorypost$isergodic<-isErgodic(Pa_ep_U+Pa_ep_F)
-  Pa_lifehistorypost$isirreducible<-isIrreducible(Pa_ep_U+Pa_ep_F)
+  Pa_lifehistorypost$isergodic[i]<-isErgodic(Pa_ep_U+Pa_ep_F)
+  Pa_lifehistorypost$isirreducible[i]<-isIrreducible(Pa_ep_U+Pa_ep_F)
   
   ##Poa autumnalis
   Pu_em_surv <- invlogit(c(Pu_par$beta_Pu[survfert_i[i],"(Intercept)"],
@@ -2000,8 +2000,8 @@ for(i in 1:n_post){
   Pu_lifehistorypost$lambda_ep_vt[i]<-lambda(Pu_ep_U+Pu_ep_F_vt)
   
   ##check ergodicity and irreducibility
-  Pu_lifehistorypost$isergodic<-isErgodic(Pu_ep_U+Pu_ep_F)
-  Pu_lifehistorypost$isirreducible<-isIrreducible(Pu_ep_U+Pu_ep_F)
+  Pu_lifehistorypost$isergodic[i]<-isErgodic(Pu_ep_U+Pu_ep_F)
+  Pu_lifehistorypost$isirreducible[i]<-isIrreducible(Pu_ep_U+Pu_ep_F)
   
   ##Poa sylvestris
   Ps_em_surv <- invlogit(c(Ps_par$beta_Ps[survfert_i[i],"(Intercept)"],
@@ -2090,8 +2090,8 @@ for(i in 1:n_post){
   Ps_lifehistorypost$lambda_ep_vt[i]<-lambda(Ps_ep_U+Ps_ep_F_vt)
 
   ##check ergodicity and irreducibility
-  Ps_lifehistorypost$isergodic<-isErgodic(Ps_ep_U+Ps_ep_F)
-  Ps_lifehistorypost$isirreducible<-isIrreducible(Ps_ep_U+Ps_ep_F)
+  Ps_lifehistorypost$isergodic[i]<-isErgodic(Ps_ep_U+Ps_ep_F)
+  Ps_lifehistorypost$isirreducible[i]<-isIrreducible(Ps_ep_U+Ps_ep_F)
 
 print(i)  
 }##end posterior sample loop
